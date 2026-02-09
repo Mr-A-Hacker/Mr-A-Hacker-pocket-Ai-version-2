@@ -5,7 +5,6 @@ from picamera2.devices import Hailo
 
 # --- CONFIGURATION ---
 MODEL_FILE = "/usr/share/hailo-models/yolov8s_h8.hef"
-# Lowering this to match rpicam-still defaults
 CONFIDENCE_THRESHOLD = 0.45 
 
 COCO_LABELS = {
@@ -31,24 +30,69 @@ COCO_LABELS = {
 def draw_detections(frame, results):
     """
     Draws boxes using the 'Squish' logic.
-    Since the whole image was squished to 640x640, xmin=0 is left, xmax=1 is right.
-    We just map 0-1 back to the screen width/height.
+    Includes FIX for split tensors (Boxes vs Classes).
     """
     if not results: 
         return
 
-    detections = results[0]
-    if len(detections.shape) == 3: 
-        detections = detections[0]
+    # --- DEBUG SECTION ---
+    # Print what the Hailo chip actually returned
+    # print(f"DEBUG: Received {len(results)} output tensors.")
+    # for i, tensor in enumerate(results):
+    #     print(f"  Tensor {i} shape: {tensor.shape}")
+    # ---------------------
 
-    # Get dimensions of the SCREEN
+    final_detections = []
+
+    # CASE A: Standard Combined Output (1 Array)
+    if len(results) == 1:
+        batch = results[0]
+        if len(batch.shape) == 3: batch = batch[0] # Unwrap batch dimension
+        final_detections = batch
+
+    # CASE B: Split Output (2 Arrays: Boxes/Scores in one, Classes in the other)
+    # This is likely what is happening to you.
+    elif len(results) == 2:
+        tensor_a = results[0]
+        tensor_b = results[1]
+        
+        # Unwrap batch dimension if present (1, N, X) -> (N, X)
+        if len(tensor_a.shape) == 3: tensor_a = tensor_a[0]
+        if len(tensor_b.shape) == 3: tensor_b = tensor_b[0]
+
+        # Identify which is which based on width (number of columns)
+        # Boxes usually have 5 cols (ymin, xmin, ymax, xmax, score)
+        # Classes usually have 1 col (class_id)
+        boxes = None
+        classes = None
+
+        if tensor_a.shape[1] == 5 and tensor_b.shape[1] == 1:
+            boxes = tensor_a
+            classes = tensor_b
+        elif tensor_a.shape[1] == 1 and tensor_b.shape[1] == 5:
+            boxes = tensor_b
+            classes = tensor_a
+        
+        # If we successfully identified the pair, merge them
+        if boxes is not None and classes is not None:
+            # Create a new list where each item is [ymin, xmin, ymax, xmax, score, class_id]
+            # using numpy to stack them horizontally
+            final_detections = np.hstack((boxes, classes))
+        else:
+            # Fallback if shapes are weird
+            print("Warning: Could not merge split tensors automatically.")
+            final_detections = tensor_a # Default to first one
+
+    # --- DRAWING LOOP ---
     height, width, _ = frame.shape
 
-    for det in detections:
-        # Parse Row
+    for det in final_detections:
+        # We handle both lengths now
         if len(det) == 6:
             ymin, xmin, ymax, xmax, score, class_id = det
         elif len(det) == 5:
+            # If we STILL only have 5, it means the merge failed or it wasn't split.
+            # We must default to 0 (Person), but at least we tried!
             ymin, xmin, ymax, xmax, score = det
             class_id = 0
         else:
@@ -57,7 +101,7 @@ def draw_detections(frame, results):
         if score < CONFIDENCE_THRESHOLD:
             continue
 
-        # SIMPLE MAPPING (No padding math needed)
+        # SIMPLE MAPPING
         x0 = int(xmin * width)
         y0 = int(ymin * height)
         x1 = int(xmax * width)
@@ -65,9 +109,14 @@ def draw_detections(frame, results):
 
         # Draw
         label = COCO_LABELS.get(int(class_id), "Object")
-        cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 255, 0), 2)
+        
+        # Color coding (optional: change color based on class)
+        color = (0, 255, 0) # Green
+        if int(class_id) == 0: color = (0, 255, 255) # Yellow for Person
+        
+        cv2.rectangle(frame, (x0, y0), (x1, y1), color, 2)
         cv2.putText(frame, f"{label} {int(score*100)}%", (x0, y0-10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
 def main():
     try:
@@ -89,8 +138,7 @@ def main():
                 frame_wide = picam2.capture_array('main')
                 frame_bgr = cv2.cvtColor(frame_wide, cv2.COLOR_BGRA2BGR)
 
-                # 2. THE SQUISH (Replaces Letterbox)
-                # Force the wide image into the square 640x640
+                # 2. THE SQUISH
                 frame_ai = cv2.resize(frame_bgr, (640, 640))
 
                 # 3. Run AI
