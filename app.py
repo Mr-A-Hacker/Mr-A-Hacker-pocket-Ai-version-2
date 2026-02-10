@@ -1,12 +1,11 @@
 import sys
-import os
+import time
+import hailo
 
 # -----------------------------------------------------------------------------------------------
-# 1. Imports from Hailo Apps
+# 1. Imports
 # -----------------------------------------------------------------------------------------------
-# We need these to access the pre-built pipeline tools
 try:
-    import hailo
     from hailo_apps.python.pipeline_apps.detection.detection_pipeline import GStreamerDetectionApp
     from hailo_apps.python.core.common.hailo_logger import get_logger
     from hailo_apps.python.core.gstreamer.gstreamer_app import app_callback_class
@@ -14,64 +13,73 @@ except ImportError:
     print("Error: Could not import hailo_apps. Did you run ./run_app.sh?")
     sys.exit(1)
 
-# Logger setup
 hailo_logger = get_logger(__name__)
 
 # -----------------------------------------------------------------------------------------------
-# 2. Define Your Custom Logic
+# 2. Custom Logic with FPS Calculation
 # -----------------------------------------------------------------------------------------------
 class PocketAI_Callback(app_callback_class):
-    """
-    This class holds data you want to keep between frames.
-    """
     def __init__(self):
         super().__init__()
-        self.person_count = 0
+        # Variables for FPS calculation
+        self.frame_count = 0
+        self.start_time = time.time()
+        self.fps = 0.0
 
 def app_callback(element, buffer, user_data):
     """
-    This function runs on EVERY frame processed by the AI.
+    Runs on every frame.
     """
     if buffer is None:
         return
 
-    # 1. Get the detections from the buffer
+    # --- FPS CALCULATION ---
+    user_data.frame_count += 1
+    # Update FPS every 30 frames to avoid jitter
+    if user_data.frame_count % 30 == 0:
+        end_time = time.time()
+        duration = end_time - user_data.start_time
+        if duration > 0:
+            user_data.fps = 30.0 / duration
+        user_data.start_time = end_time # Reset timer
+    # -----------------------
+
+    # Get the detections
     roi = hailo.get_roi_from_buffer(buffer)
     detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
-    # 2. Process detections (Your Custom Logic)
-    current_frame_people = 0
+    # Gather found objects
+    found_objects = []
     for detection in detections:
         label = detection.get_label()
         confidence = detection.get_confidence()
         
-        if label == "person" and confidence > 0.5:
-            current_frame_people += 1
-            # You can add logic here: e.g., "If person detected, turn on LED"
-            # print(f"Person detected! Confidence: {confidence:.2f}")
+        # Filter noise
+        if confidence > 0.50:
+            found_objects.append(f"{label} ({confidence:.0%})")
 
-    # 3. Print status only if it changes (to avoid spamming console)
-    if current_frame_people != user_data.person_count:
-        user_data.person_count = current_frame_people
-        print(f"Pocket AI Status: I see {user_data.person_count} person(s).")
+    # Print Status (FPS + Objects)
+    # We use \r to overwrite the line so it looks like a clean dashboard
+    objects_str = ", ".join(found_objects) if found_objects else "Scanning..."
+    print(f"\rFPS: {user_data.fps:.1f} | Visible: {objects_str} " + " "*20, end="", flush=True)
 
     return
 
 # -----------------------------------------------------------------------------------------------
-# 3. Main Application Entry Point
+# 3. Main
 # -----------------------------------------------------------------------------------------------
 def main():
-    print("Initializing Pocket AI Pipeline...")
+    print("Starting Pocket AI...")
     
-    # Initialize your custom data holder
     user_data = PocketAI_Callback()
     
-    # Create the App using Hailo's pre-built class
-    # This automatically handles camera inputs, threading, and resizing!
+    # Initialize the app
     app = GStreamerDetectionApp(app_callback, user_data)
     
-    print("Running! Press Ctrl+C to stop.")
-    app.run()
+    try:
+        app.run()
+    except KeyboardInterrupt:
+        print("\nStopping...")
 
 if __name__ == "__main__":
     main()
