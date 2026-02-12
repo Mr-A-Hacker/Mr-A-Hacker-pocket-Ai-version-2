@@ -1,30 +1,19 @@
-import cv2
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
 import logging
 import sys
 import uuid
-import time
 from typing import Dict, List, Optional
-from pydantic import BaseModel
 
 # Import OpenClawClient from the existing file
 try:
     from openclaw_client import OpenClawClient, load_openclaw_config, DEFAULT_SESSION_KEY
+    from live_cam import CameraStreamer
 except ImportError:
-    print("Error: Could not import openclaw_client. Make sure it is in the same directory.")
+    print("Error: Could not import openclaw_client or live_cam. Make sure they are in the same directory.")
     sys.exit(1)
-
-# Import Computer Vision module
-try:
-    import computer_vision
-except ImportError:
-    print("Error: Could not import computer_vision. Make sure it is in the same directory.")
-    # We won't exit here, just warn, in case CV is optional or on dev machine without hailo
-    computer_vision = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -211,81 +200,40 @@ async def websocket_endpoint(websocket: WebSocket):
     bridge = OpenClawBridge(websocket, connection_id)
     await bridge.run()
 
-# ─── Computer Vision Endpoints ────────────────────────────────────────────────
+@app.websocket("/camera")
+async def camera_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("Camera client connected")
+    
+    streamer = CameraStreamer()
+    
+    async def send_frame(data):
+        try:
+            # Send binary JPEG data
+            await websocket.send_bytes(data)
+        except Exception:
+            pass
 
-def generate_frames():
-    """Generator for MJPEG stream."""
-    if computer_vision is None:
-        return
-        
-    while True:
-        frame, _ = computer_vision.get_latest_frame()
-        if frame is not None:
-             # Encode to JPEG
-             # Ensure frame is valid (it should be if get_latest_frame returned cleanly)
-             try:
-                 # Convert RGB to BGR for OpenCV encoding if needed, 
-                 # BUT computer_vision.py says it forces RGB. 
-                 # OpenCV expects BGR. So we convert RGB -> BGR.
-                 frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                 ret, buffer = cv2.imencode('.jpg', frame_bgr)
-                 if ret:
-                     yield (b'--frame\r\n'
-                            b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-             except Exception as e:
-                 logger.error(f"Error encoding frame: {e}")
-        
-        # Cap at ~30 FPS to save CPU
-        time.sleep(0.033)
+    def camera_callback(data):
+        # We need to run the async send_frame from a sync callback
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(send_frame(data))
+        except Exception as e:
+            logger.error(f"Error in camera callback: {e}")
 
-@app.get("/video_feed")
-def video_feed():
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
-
-class CVControl(BaseModel):
-    action: str # "start", "stop"
-    mode: str = "raw" # "raw", "detection", "pose"
-
-@app.post("/cv/control")
-def cv_control(data: CVControl):
-    if computer_vision is None:
-        return {"status": "error", "message": "Computer vision module not loaded"}
-
-    logger.info(f"CV Control: {data.action} {data.mode}")
-
-    if data.action == "stop":
-         computer_vision.stop_task()
-         return {"status": "stopped"}
-         
-    elif data.action == "start":
-         # Stop any running task first
-         computer_vision.stop_task()
-         
-         target = None
-         if data.mode == "raw":
-             target = computer_vision.run_raw_camera_app
-         elif data.mode == "detection":
-             target = computer_vision.run_detection_app
-         elif data.mode == "pose":
-             target = computer_vision.run_pose_app
-             
-         if target:
-             computer_vision.start_task(target)
-             return {"status": "started", "mode": data.mode}
-         else:
-             return {"status": "error", "message": "Invalid mode"}
-             
-    return {"status": "ignored"}
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    """Release camera and GStreamer resources on server shutdown."""
-    if computer_vision is not None:
-        logger.info("Shutting down computer vision...")
-        computer_vision.stop_task()
-        logger.info("Computer vision stopped.")
-
+    streamer.start(callback=camera_callback)
+    
+    try:
+        while True:
+            # Just keep the connection alive
+            # Wait for any message from client (e.g. to stop or ping)
+            await websocket.receive_text()
+    except (WebSocketDisconnect, RuntimeError):
+        logger.info("Camera client disconnected")
+    finally:
+        streamer.stop()
 
 if __name__ == "__main__":
     import uvicorn

@@ -167,12 +167,8 @@ export default function ChatInterface({ layoutId }) {
             transition={{ duration: 0.5, type: "spring" }}
             className="w-[480px] h-[800px] max-w-full max-h-screen mx-auto flex flex-col bg-white relative overflow-hidden"
         >
-            <ChatHeader
-                connected={connStatus === 'connected'}
-                onReset={reset}
-            />
+            <ChatHeader connected={connStatus === 'connected'} onReset={reset} />
             {connStatus !== 'connected' && <ConnectionBar status={connStatus} />}
-
             <MessageList
                 messages={messages}
                 streaming={streaming}
