@@ -4,7 +4,7 @@ import { MessageCircle, Settings, Camera, Music, Video, Map as MapIcon } from 'l
 import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 
-const Orbiter = ({ icon: Icon, radius, duration, initialAngle, delay = 0 }) => {
+const Orbiter = ({ icon: Icon, radius, duration, initialAngle, delay = 0, onClick }) => {
     // Calculate static position based on angle and radius
     const radian = (initialAngle * Math.PI) / 180;
     const x = Math.cos(radian) * radius;
@@ -25,7 +25,10 @@ const Orbiter = ({ icon: Icon, radius, duration, initialAngle, delay = 0 }) => {
             }}
         >
             <div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2">
-                <div className="w-16 h-16 bg-white/80 backdrop-blur-md rounded-2xl text-blue-500 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-slate-100 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center">
+                <div
+                    onClick={onClick}
+                    className="w-16 h-16 bg-white/80 backdrop-blur-md rounded-2xl text-blue-500 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-slate-100 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center pointer-events-auto"
+                >
                     <Icon size={28} />
                 </div>
             </div>
@@ -33,7 +36,7 @@ const Orbiter = ({ icon: Icon, radius, duration, initialAngle, delay = 0 }) => {
     );
 };
 
-export default function Home() {
+export default function Home({ onOpenCamera }) {
     const navigate = useNavigate();
 
     const handleAvatarClick = () => {
@@ -53,7 +56,7 @@ export default function Home() {
             <div className="absolute inset-0 z-10 pointer-events-none">
                 <div className="w-full h-full relative flex items-center justify-center">
                     <Orbiter icon={MessageCircle} radius={150} initialAngle={270} delay={0} />
-                    <Orbiter icon={Camera} radius={150} initialAngle={330} delay={0.2} />
+                    <Orbiter icon={Camera} radius={150} initialAngle={330} delay={0.2} onClick={onOpenCamera} />
                     <Orbiter icon={Music} radius={150} initialAngle={30} delay={0.4} />
                     <Orbiter icon={Settings} radius={150} initialAngle={90} delay={0.6} />
                     <Orbiter icon={Video} radius={150} initialAngle={150} delay={0.8} />

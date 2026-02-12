@@ -31,16 +31,20 @@ export default function Avatar({
     // Allow overriding width/height via className if needed, but default to variant size
     const containerClasses = `relative bg-white rounded-[40px] flex items-center justify-center ${currentStyle.size} shadow-[0_8px_40px_rgba(0,149,255,0.15)] border border-blue-100 ${onClick ? 'cursor-pointer' : ''} ${className}`;
 
-    // Eye animation
-    const eyeAnimation = animate ? {
-        scaleY: [1, 0.1, 1]
-    } : {};
-
-    const eyeTransition = animate ? {
-        duration: 0.2,
-        repeat: Infinity,
-        repeatDelay: 3.5
-    } : {};
+    // Eye animation variants
+    const eyeVariants = {
+        blink: {
+            scaleY: [1, 0.1, 1],
+            transition: {
+                duration: 0.25, // Slightly slower for better visibility
+                repeat: Infinity,
+                repeatDelay: 3.5 // Blink every ~3.5s
+            }
+        },
+        static: {
+            scaleY: 1
+        }
+    };
 
     return (
         <motion.div
@@ -58,15 +62,16 @@ export default function Avatar({
                 <div className={`flex ${currentStyle.eyeGap}`}>
                     <motion.div
                         className={`${currentStyle.eyeSize} bg-cyan-400 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.6)]`}
-                        animate={eyeAnimation}
-                        transition={eyeTransition}
+                        variants={eyeVariants}
+                        animate={animate ? "blink" : "static"}
                     />
                     <motion.div
                         className={`${currentStyle.eyeSize} bg-cyan-400 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.6)]`}
-                        animate={eyeAnimation}
-                        transition={eyeTransition}
+                        variants={eyeVariants}
+                        animate={animate ? "blink" : "static"}
                     />
                 </div>
+
                 {/* Mouth */}
                 <div className={`${currentStyle.mouthSize} border-slate-700/30 rounded-full`} />
             </div>
