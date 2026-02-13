@@ -6,6 +6,7 @@ import logging
 import sys
 import uuid
 import pydantic
+from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
 # Import OpenClawClient from the existing file
@@ -41,11 +42,20 @@ try:
     import detection
 except ImportError:
     # Fallback if running from root without python path set?
-    # Or maybe it's fine.
     print("Warning: Could not import detection.py. Make sure environment is set.")
     detection = None
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # Shutdown: stop camera/detection child processes so the server can exit cleanly
+    if detection:
+        await asyncio.to_thread(detection.shutdown_all)
+    logger.info("Backend shutdown complete.")
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Enable CORS
 app.add_middleware(
@@ -272,11 +282,19 @@ async def stop_camera(request: CameraRequest):
 
 @app.post("/camera/detection/start")
 async def start_camera_detection(request: CameraRequest):
-    """Start object detection at 5 fps (Hailo). Stream must be running."""
-    if detection:
-        ok = detection.start_detection_mode(request.session_id)
-        return {"status": "started" if ok else "error", "message": "Detection started" if ok else "Start camera first"}
-    return {"status": "error", "message": "Detection module not available"}
+    """Start object detection at 10 fps (Hailo). Stream must be running."""
+    if not detection:
+        return {"status": "error", "message": "Detection module not available"}
+    try:
+        result = detection.start_detection_mode(request.session_id)
+        if result is True:
+            return {"status": "started", "message": "Detection started"}
+        if isinstance(result, tuple):
+            return {"status": "error", "message": result[1]}
+        return {"status": "error", "message": "Start camera view first, or stream not ready"}
+    except Exception as e:
+        logger.exception("Detection start failed")
+        return {"status": "error", "message": str(e)}
 
 @app.post("/camera/detection/stop")
 async def stop_camera_detection(request: CameraRequest):
@@ -296,8 +314,9 @@ def generate_frames():
                 if first_frame:
                     print("DEBUG: generate_frames received first frame!")
                     first_frame = False
-                # Encode frame to JPEG
-                # Frame is RGB, OpenCV expects BGR
+                # Rotate 90° clockwise for portrait display in the UI
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                # Encode frame to JPEG; frame is RGB, OpenCV expects BGR
                 frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 ret, buffer = cv2.imencode('.jpg', frame_bgr)
                 if ret:

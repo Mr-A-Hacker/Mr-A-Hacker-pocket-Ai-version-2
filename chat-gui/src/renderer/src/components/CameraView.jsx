@@ -12,6 +12,7 @@ export default function CameraView() {
     const [status, setStatus] = useState('connecting'); // connecting, connected, error
     const [detections, setDetections] = useState([]);
     const [detectionActive, setDetectionActive] = useState(false);
+    const [detectionError, setDetectionError] = useState(null);
     const wsRef = useRef(null);
 
     const videoFeedUrl = `http://${window.location.hostname}:8000/video_feed`;
@@ -121,15 +122,17 @@ export default function CameraView() {
     }, []);
 
     const toggleDetection = async () => {
+        setDetectionError(null);
         if (detectionActive) {
+            // Update UI immediately; backend may block for a few seconds waiting for process
+            setDetectionActive(false);
+            setDetections([]);
             try {
                 await fetch(detectionStopUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: 'default' })
                 });
-                setDetectionActive(false);
-                setDetections([]);
             } catch (e) {
                 console.error('Failed to stop detection:', e);
             }
@@ -144,22 +147,28 @@ export default function CameraView() {
                 if (data.status === 'started') {
                     setDetectionActive(true);
                 } else {
-                    console.error('Detection start failed:', data.message || data);
+                    const msg = data.message || data.error || 'Detection failed to start';
+                    setDetectionError(msg);
+                    console.error('Detection start failed:', msg);
                 }
             } catch (e) {
+                const msg = e.message || 'Network error';
+                setDetectionError(msg);
                 console.error('Failed to start detection:', e);
             }
         }
     };
 
-    // Function to render bounding boxes
+    // Video is rotated 90° clockwise for portrait; transform bbox to match
+    const transformBboxForRotation = ([xmin, ymin, xmax, ymax]) => {
+        const left = ymin, top = 1 - xmax, right = ymax, bottom = 1 - xmin;
+        return [1 - right, top, 1 - left, bottom]; // flip x only so left/right match display
+    };
+
     const renderBoundingBoxes = () => {
         return detections.map((det, index) => {
-            // bbox format: [xmin, ymin, xmax, ymax]
-            // values are normalized 0-1 relative to the video frame
-            const [xmin, ymin, xmax, ymax] = det.bbox;
+            const [xmin, ymin, xmax, ymax] = transformBboxForRotation(det.bbox);
 
-            // Convert to percentages for CSS positioning
             const left = `${xmin * 100}%`;
             const top = `${ymin * 100}%`;
             const width = `${(xmax - xmin) * 100}%`;
@@ -212,17 +221,25 @@ export default function CameraView() {
                 <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-medium uppercase tracking-wider border border-white/10">
                     Live Vision
                 </div>
-                <button
-                    onClick={toggleDetection}
-                    className={`pointer-events-auto w-10 h-10 rounded-full flex items-center justify-center transition-colors border ${
-                        detectionActive
-                            ? 'bg-cyan-500/80 text-white border-cyan-400'
-                            : 'bg-white/10 text-white border-white/10 hover:bg-white/20'
-                    }`}
-                    title={detectionActive ? 'Stop object detection' : 'Start object detection (5 fps)'}
-                >
-                    <Scan size={24} />
-                </button>
+                <div className="pointer-events-auto flex flex-col items-end gap-1">
+                    {detectionError && (
+                        <span className="text-[10px] text-red-400 max-w-[200px] text-right">
+                            {detectionError}
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        onClick={toggleDetection}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors border shrink-0 ${
+                            detectionActive
+                                ? 'bg-cyan-500/80 text-white border-cyan-400'
+                                : 'bg-white/10 text-white border-white/10 hover:bg-white/20'
+                        }`}
+                        title={detectionActive ? 'Stop object detection' : 'Start object detection (10 fps)'}
+                    >
+                        <Scan size={24} />
+                    </button>
+                </div>
             </div>
 
             {/* Camera Frame Container */}
@@ -341,7 +358,7 @@ export default function CameraView() {
                     <div className="w-px h-3 bg-white/20"></div>
                     <div>{detectionActive ? `${detections.length} Objects` : '—'}</div>
                     <div className="w-px h-3 bg-white/20"></div>
-                    <div>{detectionActive ? 'Hailo 5 fps' : 'Stream 30 fps'}</div>
+                    <div>{detectionActive ? 'Hailo 10 fps' : 'Stream 30 fps'}</div>
                 </div>
             </div>
         </motion.div>

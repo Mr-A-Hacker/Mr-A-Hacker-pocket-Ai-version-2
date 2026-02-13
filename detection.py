@@ -427,7 +427,7 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
         GLib.idle_add(self.loop.quit)
 
     def run_with_frame_queue(self, detection_queue, stop_event, video_width, video_height):
-        """Run pipeline with frames from detection_queue (5 fps) instead of camera thread."""
+        """Run pipeline with frames from detection_queue (10 fps) instead of camera thread."""
         from hailo_apps.python.core.gstreamer.gstreamer_common import disable_qos
 
         bus = self.pipeline.get_bus()
@@ -446,7 +446,7 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
             "caps",
             Gst.Caps.from_string(
                 f"video/x-raw, format=RGB, width={video_width}, height={video_height}, "
-                "framerate=5/1, pixel-aspect-ratio=1/1"
+                "framerate=10/1, pixel-aspect-ratio=1/1"
             ),
         )
 
@@ -460,7 +460,7 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
                 if frame is None:
                     break
                 buffer = Gst.Buffer.new_wrapped(frame.tobytes())
-                buffer_duration = Gst.util_uint64_scale_int(1, Gst.SECOND, 5)
+                buffer_duration = Gst.util_uint64_scale_int(1, Gst.SECOND, 10)
                 buffer.pts = frame_count * buffer_duration
                 buffer.duration = buffer_duration
                 try:
@@ -471,7 +471,7 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
                     hailo_logger.error(f"Feeder push error: {e}")
                     break
                 frame_count += 1
-                time.sleep(0.2)
+                time.sleep(0.1)
 
         feeder_thread = threading.Thread(target=feeder_loop, daemon=True)
         self.threads.append(feeder_thread)
@@ -499,7 +499,7 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
             hailo_logger.error(f"Cleanup error: {e}")
 
 # -----------------------------------------------------------------------------------------------
-# Stream process (30 fps, no Hailo) + Detection process (5 fps, Hailo)
+# Stream process (30 fps, no Hailo) + Detection process (10 fps, Hailo)
 # -----------------------------------------------------------------------------------------------
 stream_process = None
 stream_consumer_thread = None
@@ -543,7 +543,7 @@ def _stream_consumer_loop(q):
 
 def run_detection_process(detection_queue_in, detections_output_queue_out, stop_event_in):
     """
-    Runs the detection app in a separate process. Reads frames from detection_queue_in at 5 fps,
+    Runs the detection app in a separate process. Reads frames from detection_queue_in at 10 fps,
     runs Hailo pipeline, pushes detections to detections_output_queue_out.
     """
     try:
@@ -552,7 +552,7 @@ def run_detection_process(detection_queue_in, detections_output_queue_out, stop_
     except ImportError:
         pass
 
-    hailo_logger.info("Starting Detection Process (5 fps from queue).")
+    hailo_logger.info("Starting Detection Process (10 fps from queue).")
 
     if "--input" not in sys.argv:
         sys.argv.extend(["--input", "rpi"])
@@ -746,7 +746,8 @@ def perform_actual_shutdown():
 
 
 def start_detection_mode(session_id=None):
-    """Starts the Hailo detection process (5 fps). Stream must already be running."""
+    """Starts the Hailo detection process (10 fps). Stream must already be running.
+    Returns True on success, False on stream not ready, or (False, error_message) if process crashed."""
     global detection_process, detection_enabled
 
     with session_lock:
@@ -757,6 +758,18 @@ def start_detection_mode(session_id=None):
             hailo_logger.warning("Stream not running; start camera first.")
             return False
         _spawn_detection_process()
+        proc = detection_process
+
+    # Give process a moment to crash (e.g. Hailo not found); then report failure
+    time.sleep(0.5)
+    with session_lock:
+        if proc is not None and not proc.is_alive() and detection_process is proc:
+            exit_code = proc.exitcode if hasattr(proc, "exitcode") else None
+            hailo_logger.warning("Detection process exited immediately (exitcode=%s). Check Hailo device and logs.", exit_code)
+            if detection_enabled is not None:
+                detection_enabled.value = False
+            detection_process = None
+            return (False, "Hailo detection failed to start. Check device and server logs.")
     return True
 
 
@@ -773,18 +786,50 @@ def stop_detection_mode(session_id=None):
 
     if proc and proc.is_alive():
         detection_stop_event.set()
-        proc.join(timeout=5.0)
+        proc.join(timeout=1.5)
         if proc.is_alive():
             proc.terminate()
-            proc.join(timeout=2.0)
+            proc.join(timeout=0.5)
         if proc.is_alive():
             proc.kill()
-            proc.join()
+            proc.join(timeout=0.3)
 
     shared_state.update_detections([])
     detection_stop_event = multiprocessing.Event()
     hailo_logger.info("Detection mode stopped.")
     return True
+
+
+def shutdown_all():
+    """
+    Force-stop all camera/detection processes. Call on app shutdown (e.g. FastAPI lifespan)
+    so child processes are terminated before the main process exits and atexit handlers run.
+    """
+    global ref_count, shutdown_timer, stream_process, stream_queue, stream_stop_event
+
+    hailo_logger.info("Shutdown all: stopping detection and stream processes.")
+    if shutdown_timer is not None:
+        shutdown_timer.cancel()
+        shutdown_timer = None
+    ref_count = 0
+    stop_detection_mode()
+    # Stop stream process regardless of ref_count
+    with session_lock:
+        proc = stream_process
+        stream_process = None
+        stream_queue = None
+        shutdown_timer = None
+    if proc and proc.is_alive():
+        stream_stop_event.set()
+        proc.join(timeout=1.0)
+        if proc.is_alive():
+            proc.terminate()
+            proc.join(timeout=0.5)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(timeout=0.3)
+    hailo_logger.info("Shutdown all complete.")
+
 
 def main():
     # Standalone run

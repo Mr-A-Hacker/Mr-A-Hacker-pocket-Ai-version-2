@@ -1,7 +1,7 @@
 """
 Lightweight 30 fps camera stream process. No GStreamer, no Hailo.
 Used for live view when camera screen is open. When detection is enabled,
-every 6th frame is also pushed to detection_queue for 5 fps inference.
+every 3rd frame is also pushed to detection_queue for 10 fps inference.
 """
 import time
 import multiprocessing
@@ -11,8 +11,8 @@ import multiprocessing
 STREAM_WIDTH = 640
 STREAM_HEIGHT = 384
 STREAM_FPS = 30
-# Every Nth frame goes to detection (~5 fps when capture is 30 fps)
-DETECTION_FRAME_INTERVAL = 6
+# Every Nth frame goes to detection (~10 fps when capture is 30 fps)
+DETECTION_FRAME_INTERVAL = 3
 
 
 def run_stream_process(
@@ -25,7 +25,7 @@ def run_stream_process(
 ):
     """
     Captures from Picamera2 at 30 fps. Puts every frame in stream_queue.
-    When detection_enabled is true, puts every 6th frame in detection_queue (non-blocking).
+    When detection_enabled is true, puts every 3rd frame in detection_queue (non-blocking).
     """
     try:
         import setproctitle
@@ -69,12 +69,12 @@ def run_stream_process(
             if frame_data is None:
                 break
 
-            # Picamera2 RGB888 is typically RGB; avoid double conversion
+            # libcamera/Pi often gives BGR; convert to RGB for pipeline (app.py expects RGB)
             import cv2
             if len(frame_data.shape) == 2:
                 frame = cv2.cvtColor(frame_data, cv2.COLOR_GRAY2RGB)
             elif frame_data.shape[2] == 3:
-                frame = frame_data.copy()
+                frame = cv2.cvtColor(frame_data, cv2.COLOR_BGR2RGB)
             else:
                 frame = cv2.cvtColor(frame_data, cv2.COLOR_BGR2RGB)
 
