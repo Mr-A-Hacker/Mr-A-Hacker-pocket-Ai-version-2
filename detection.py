@@ -224,9 +224,11 @@ def robust_picamera_thread(pipeline, video_width, video_height, video_format, pi
 
         frame_count = 0
         while True:
-            # Check if app is still running (using global flag or weakref if possible, 
-            # but for now we rely on pipeline state)
-            
+            # Exit quickly when stop is requested (e.g. user pressed back)
+            if _process_stop_event is not None and _process_stop_event.is_set():
+                hailo_logger.info("Stop event set; exiting camera thread.")
+                break
+
             # Non-blocking capture if possible, but capture_array is blocking.
             # We trust that GStreamer flow return will tell us when to stop.
             try:
@@ -402,6 +404,20 @@ class CustomGStreamerDetectionApp(GStreamerDetectionApp):
         hailo_logger.debug("Pipeline string: %s", pipeline_string)
         return pipeline_string
 
+    def shutdown(self, signum=None, frame=None):
+        """Override to quit the main loop immediately instead of blocking on pipeline state.
+        Pipeline and thread cleanup is done in run()'s finally block. This avoids deadlock
+        where the main thread blocks in set_state(PAUSED) waiting for the pipeline while
+        the camera thread is blocked in capture_array()."""
+        hailo_logger.warning("Shutdown initiated (quitting loop first)")
+        if self.watchdog_running:
+            self.watchdog_running = False
+            if self.watchdog_thread and self.watchdog_thread.is_alive():
+                self.watchdog_thread.join(timeout=2.0)
+            self.watchdog_thread = None
+        # Quit the loop so run() returns and finally block does pipeline NULL + thread joins.
+        GLib.idle_add(self.loop.quit)
+
 # -----------------------------------------------------------------------------------------------
 # Multiprocessing Support
 # -----------------------------------------------------------------------------------------------
@@ -409,6 +425,9 @@ detection_process = None
 monitor_thread = None
 stop_event = multiprocessing.Event()
 frame_queue = None
+
+# Set by run_detection_process so the camera thread can exit when stop is requested
+_process_stop_event = None
 
 def run_detection_process(frame_queue, stop_event):
     """
@@ -420,6 +439,9 @@ def run_detection_process(frame_queue, stop_event):
         setproctitle.setproctitle("pocket-ai-detection")
     except ImportError:
         pass
+
+    global _process_stop_event
+    _process_stop_event = stop_event
 
     hailo_logger.info("Starting Detection Process.")
     
@@ -529,6 +551,24 @@ ref_count = 0
 shutdown_timer = None
 session_lock = threading.Lock()
 
+def _spawn_detection_process():
+    """Spawn the detection process and monitor thread. Caller must hold session_lock for ref_count, but we read detection_process without holding lock for the initial check."""
+    global detection_process, monitor_thread, frame_queue
+    stop_event.clear()
+    frame_queue = multiprocessing.Queue(maxsize=2)
+    detection_process = multiprocessing.Process(
+        target=run_detection_process,
+        args=(frame_queue, stop_event),
+        daemon=False
+    )
+    detection_process.start()
+    monitor_thread = threading.Thread(
+        target=monitor_queue_loop,
+        args=(frame_queue,),
+        daemon=True
+    )
+    monitor_thread.start()
+
 def start_detection(session_id=None):
     """
     Starts the detection process if not already running.
@@ -546,33 +586,13 @@ def start_detection(session_id=None):
             shutdown_timer.cancel()
             shutdown_timer = None
 
-    # If process is ALIVE, just return the existing shared state
-    if detection_process is not None and detection_process.is_alive():
-        hailo_logger.info("Detection process is already running.")
-        return shared_state
+        # If process is ALIVE, just return the existing shared state
+        if detection_process is not None and detection_process.is_alive():
+            hailo_logger.info("Detection process is already running.")
+            return shared_state
 
-    hailo_logger.info("Spawning detection process...")
-    
-    # Reset communication primitives
-    stop_event.clear()
-    frame_queue = multiprocessing.Queue(maxsize=2)
-    
-    # Spawn Process
-    # daemon=False to allow potential child processes (legacy display app logic)
-    detection_process = multiprocessing.Process(
-        target=run_detection_process, 
-        args=(frame_queue, stop_event),
-        daemon=False
-    )
-    detection_process.start()
-    
-    # Start Monitor Thread in parent process to update shared_state
-    monitor_thread = threading.Thread(
-        target=monitor_queue_loop, 
-        args=(frame_queue,), 
-        daemon=True
-    )
-    monitor_thread.start()
+        hailo_logger.info("Spawning detection process...")
+        _spawn_detection_process()
     
     return shared_state
 
@@ -599,39 +619,37 @@ def stop_detection(session_id=None):
 def perform_actual_shutdown():
     """
     Actually kills the process. Called by the shutdown_timer.
+    Does not hold session_lock during process.join() so that start_detection()
+    can run when the user re-opens the camera (avoids "stuck connecting").
     """
-    global detection_process, frame_queue, shutdown_timer
+    global detection_process, frame_queue, shutdown_timer, ref_count
     
     with session_lock:
-        # Re-check ref_count in case someone started while we were waiting
         if ref_count > 0:
             hailo_logger.info("Shutdown aborted: ref_count increased while waiting.")
             return
-
+        proc = detection_process
         hailo_logger.info("Performing actual shutdown of detection process...")
-        
-        # Signal graceful exit via stop_event
-        stop_event.set()
-        
-        if detection_process and detection_process.is_alive():
-            # Wait for graceful exit
-            detection_process.join(timeout=5.0)
-            
-            if detection_process.is_alive():
-                 hailo_logger.warning("Process did not exit gracefully; terminating.")
-                 detection_process.terminate()
-                 detection_process.join(timeout=2.0)
-                 
-                 if detection_process.is_alive():
-                    hailo_logger.warning("Process did not terminate; killing.")
-                    detection_process.kill()
-                    detection_process.join()
-                
-        hailo_logger.info("Detection process stopped.")
-        
+    # Release lock before join so POST /camera/start can acquire it and return quickly
+    stop_event.set()
+    if proc and proc.is_alive():
+        proc.join(timeout=5.0)
+        if proc.is_alive():
+            hailo_logger.warning("Process did not exit gracefully; terminating.")
+            proc.terminate()
+            proc.join(timeout=2.0)
+            if proc.is_alive():
+                hailo_logger.warning("Process did not terminate; killing.")
+                proc.kill()
+                proc.join()
+    hailo_logger.info("Detection process stopped.")
+    with session_lock:
         detection_process = None
         frame_queue = None
         shutdown_timer = None
+        if ref_count > 0:
+            hailo_logger.info("Ref count > 0 after shutdown; spawning new detection process.")
+            _spawn_detection_process()
 
 def main():
     # Standalone run
