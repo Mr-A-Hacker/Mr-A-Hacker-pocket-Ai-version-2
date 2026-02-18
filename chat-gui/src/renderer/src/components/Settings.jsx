@@ -20,36 +20,38 @@ export default function Settings() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="relative w-[480px] h-full max-w-full mx-auto overflow-hidden bg-slate-50 shadow-2xl flex flex-col"
+            className="relative w-full h-full max-w-full mx-auto overflow-hidden bg-[var(--pixel-bg)] flex flex-col"
         >
             {/* Header */}
-            <div className="flex items-center p-4 bg-white shadow-sm z-10">
+            <div className="flex items-center p-4 bg-[var(--pixel-surface)] border-b-4 border-[var(--pixel-border)] z-10">
                 <button
                     onClick={() => navigate('/')}
-                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                    className="pixel-btn flex items-center justify-center p-2"
                 >
-                    <ArrowLeft size={24} />
+                    <ArrowLeft size={20} />
                 </button>
-                <h1 className="ml-4 text-xl font-bold text-slate-800">Settings</h1>
+                <h1 className="ml-4 text-xl font-['Press_Start_2P'] text-[var(--pixel-primary)]">SETTINGS</h1>
             </div>
 
             {/* Content */}
             <div className="flex-1 p-6 flex flex-col items-center justify-center space-y-8">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Application Settings</h2>
-                    <p className="text-slate-500">Manage your application preferences</p>
+                    <h2 className="text-2xl font-['VT323'] text-[var(--pixel-text)] mb-2 uppercase tracking-widest">System Configuration</h2>
+                    <p className="text-[var(--pixel-secondary)] font-['VT323'] text-lg">MANAGE TERMINAL PREFERENCES</p>
                 </div>
 
-                <button
-                    onClick={handleCloseApp}
-                    className="w-full max-w-xs py-4 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-3 active:scale-95"
-                >
-                    <Power size={24} />
-                    <span className="text-lg font-medium">Close Application</span>
-                </button>
+                <div className="w-full max-w-xs p-6 border-4 border-[var(--pixel-border)] bg-[var(--pixel-surface)] shadow-[8px_8px_0_0_rgba(0,0,0,0.3)]">
+                    <button
+                        onClick={handleCloseApp}
+                        className="w-full py-6 px-8 bg-red-500 text-white font-['Press_Start_2P'] text-sm border-4 border-white shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:bg-red-600 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-4"
+                    >
+                        <Power size={24} />
+                        <span>SHUTDOWN</span>
+                    </button>
+                </div>
 
-                <div className="text-xs text-slate-400 mt-auto pt-12">
-                    Version 1.0.0
+                <div className="text-xs font-['Press_Start_2P'] text-[var(--pixel-border)] mt-auto pt-12">
+                    VER 1.0.0
                 </div>
             </div>
         </motion.div>

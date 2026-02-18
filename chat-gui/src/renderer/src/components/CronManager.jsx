@@ -142,96 +142,100 @@ export default function CronManager() {
     };
 
     return (
-        <div className="w-[480px] h-full mx-auto flex flex-col bg-gray-50 text-gray-900 font-sans relative overflow-hidden">
+        <div className="w-full h-full mx-auto flex flex-col bg-[var(--pixel-bg)] text-[var(--pixel-text)] font-['VT323'] relative overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 bg-white shadow-sm z-10">
+            <div className="flex items-center justify-between p-4 bg-[var(--pixel-surface)] border-b-4 border-[var(--pixel-border)] z-10">
                 <div className="flex items-center">
                     <button
                         onClick={() => navigate('/')}
-                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors mr-2"
+                        className="pixel-btn p-2 mr-4"
                     >
-                        <ArrowLeft size={20} className="text-gray-600" />
+                        <ArrowLeft size={20} />
                     </button>
-                    <h1 className="text-lg font-bold text-gray-800">Scheduled Jobs</h1>
+                    <h1 className="text-xl font-['Press_Start_2P'] text-[var(--pixel-primary)]">CRON JOBS</h1>
                 </div>
                 <button
                     onClick={() => setShowAddForm(!showAddForm)}
-                    className={`p-2 rounded-full transition-colors ${showAddForm ? 'bg-gray-200 text-gray-600' : 'bg-blue-600 text-white shadow-md hover:bg-blue-700'}`}
+                    className={`pixel-btn p-2 transition-transform ${showAddForm ? 'bg-[var(--pixel-text)] text-black' : 'bg-[var(--pixel-accent)] text-black'}`}
                 >
-                    <Plus size={20} className={showAddForm ? "rotate-45 transition-transform" : "transition-transform"} />
+                    <Plus size={20} className={showAddForm ? "rotate-45" : ""} />
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scroller-pixel">
                 <AnimatePresence>
                     {showAddForm && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden mb-4"
+                            className="bg-[var(--pixel-surface)] border-4 border-[var(--pixel-border)] p-4 mb-4 shadow-[8px_8px_0_0_rgba(0,0,0,0.5)]"
                         >
-                            <div className="p-4 bg-gray-50 border-b border-gray-100">
-                                <h3 className="font-semibold text-sm text-gray-700">New Job</h3>
+                            <div className="p-2 border-b-2 border-[var(--pixel-border)] mb-4">
+                                <h3 className="font-['Press_Start_2P'] text-xs text-[var(--pixel-secondary)] uppercase">NEW TASK</h3>
                             </div>
-                            <form onSubmit={handleAddJob} className="p-4 space-y-4">
+                            <form onSubmit={handleAddJob} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-gray-500 uppercase">Name</label>
+                                        <label className="text-sm font-medium text-gray-400 uppercase">Name</label>
                                         <input
                                             value={name} onChange={e => setName(e.target.value)}
-                                            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                                            placeholder="Daily Summary" required
+                                            className="w-full p-2 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] text-lg placeholder-[var(--pixel-border)] focus:border-[var(--pixel-primary)] outline-none"
+                                            placeholder="TASK NAME..." required
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-gray-500 uppercase">Description</label>
+                                        <label className="text-sm font-medium text-gray-400 uppercase">Description</label>
                                         <input
                                             value={description} onChange={e => setDescription(e.target.value)}
-                                            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                                            placeholder="Optional"
+                                            className="w-full p-2 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] text-lg placeholder-[var(--pixel-border)] focus:border-[var(--pixel-primary)] outline-none"
+                                            placeholder="OPTIONAL..."
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 uppercase">Schedule Type</label>
-                                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                                        {['every', 'cron', 'at'].map(type => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => setScheduleType(type)}
-                                                className={`flex-1 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${scheduleType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                                                    }`}
-                                            >
-                                                {type}
-                                            </button>
-                                        ))}
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-['Press_Start_2P'] mb-2 text-[var(--pixel-secondary)]">SCHEDULE TYPE</label>
+                                        <div className="flex bg-[var(--pixel-bg)] p-1 border-2 border-[var(--pixel-border)]">
+                                            {['every', 'cron', 'at'].map(type => (
+                                                <button
+                                                    key={type}
+                                                    type="button"
+                                                    onClick={() => setScheduleType(type)}
+                                                    className={`flex-1 py-3 text-center font-['VT323'] text-xl transition-colors ${scheduleType === type
+                                                        ? 'bg-[var(--pixel-primary)] text-black'
+                                                        : 'text-[var(--pixel-text)] hover:bg-[var(--pixel-surface)]'
+                                                        }`}
+                                                >
+                                                    {type.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Schedule Inputs */}
-                                <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100">
                                     {scheduleType === 'every' && (
-                                        <div className="flex gap-3">
+                                        <div className="flex gap-4">
                                             <div className="flex-1">
-                                                <label className="text-xs text-blue-600 mb-1 block">Value</label>
+                                                <label className="block text-xs font-['Press_Start_2P'] mb-2 text-[var(--pixel-secondary)]">INTERVAL</label>
                                                 <input
-                                                    type="number" min="1"
-                                                    value={intervalValue} onChange={e => setIntervalValue(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm"
+                                                    type="number"
+                                                    min="1"
+                                                    value={intervalValue}
+                                                    onChange={(e) => setIntervalValue(parseInt(e.target.value) || 1)}
+                                                    className="pixel-input w-full"
                                                 />
                                             </div>
                                             <div className="flex-1">
-                                                <label className="text-xs text-blue-600 mb-1 block">Unit</label>
+                                                <label className="block text-xs font-['Press_Start_2P'] mb-2 text-[var(--pixel-secondary)]">UNIT</label>
                                                 <select
-                                                    value={intervalUnit} onChange={e => setIntervalUnit(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm"
+                                                    value={intervalUnit}
+                                                    onChange={(e) => setIntervalUnit(e.target.value)}
+                                                    className="pixel-select w-full h-full"
                                                 >
-                                                    <option value="minutes">Minutes</option>
-                                                    <option value="hours">Hours</option>
-                                                    <option value="days">Days</option>
+                                                    <option value="minutes">MINUTES</option>
+                                                    <option value="hours">HOURS</option>
+                                                    <option value="days">DAYS</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -239,10 +243,10 @@ export default function CronManager() {
 
                                     {scheduleType === 'cron' && (
                                         <div>
-                                            <label className="text-xs text-blue-600 mb-1 block">Cron Expression</label>
+                                            <label className="text-xs text-[var(--pixel-primary)] mb-1 block">EXPRESSION</label>
                                             <input
                                                 value={cronExpression} onChange={e => setCronExpression(e.target.value)}
-                                                className="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm font-mono"
+                                                className="w-full p-2 bg-[var(--pixel-surface)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] text-lg font-mono"
                                                 placeholder="* * * * *"
                                             />
                                         </div>
@@ -250,40 +254,40 @@ export default function CronManager() {
 
                                     {scheduleType === 'at' && (
                                         <div>
-                                            <label className="text-xs text-blue-600 mb-1 block">Date & Time</label>
+                                            <label className="text-xs text-[var(--pixel-primary)] mb-1 block">TIMESTAMP</label>
                                             <input
                                                 type="datetime-local"
                                                 value={targetDate} onChange={e => setTargetDate(e.target.value)}
-                                                className="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm"
+                                                className="w-full p-2 bg-[var(--pixel-surface)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] text-lg"
                                             />
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="text-xs font-medium text-gray-500 uppercase flex items-center gap-1">
-                                        <MessageSquare size={12} /> Agent Message
+                                    <label className="text-xs font-medium text-gray-400 uppercase flex items-center gap-1">
+                                        <MessageSquare size={12} /> Agent Instruction
                                     </label>
                                     <textarea
                                         value={agentMessage} onChange={e => setAgentMessage(e.target.value)}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none min-h-[80px]"
-                                        placeholder="What should the agent do or say when this triggers?"
+                                        className="w-full p-3 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] text-lg focus:border-[var(--pixel-primary)] outline-none min-h-[80px] resize-none"
+                                        placeholder="INSTRUCTIONS FOR AGENT..."
                                     />
                                 </div>
 
-                                <div className="flex justify-end pt-2">
+                                <div className="flex justify-end pt-2 gap-4">
                                     <button
                                         type="button"
                                         onClick={() => setShowAddForm(false)}
-                                        className="px-4 py-2 text-gray-500 text-sm font-medium hover:text-gray-700 mr-2"
+                                        className="pixel-btn bg-[var(--pixel-bg)] text-[var(--pixel-text)]"
                                     >
-                                        Cancel
+                                        CANCEL
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm"
+                                        className="pixel-btn bg-[var(--pixel-primary)] text-black"
                                     >
-                                        Add Job
+                                        ADD TASK
                                     </button>
                                 </div>
                             </form>
@@ -292,9 +296,9 @@ export default function CronManager() {
                 </AnimatePresence>
 
                 {jobs.length === 0 && !showAddForm ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                        <Clock size={48} className="mb-4 opacity-20" />
-                        <p className="text-sm">No active tasks found</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-[var(--pixel-border)]">
+                        <Clock size={48} className="mb-4 opacity-50" />
+                        <p className="text-xl">NO ACTIVE SCHEDULES</p>
                     </div>
                 ) : (
                     jobs.map((job) => (
@@ -302,39 +306,39 @@ export default function CronManager() {
                             key={job.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 group hover:shadow-md transition-shadow"
+                            className="bg-[var(--pixel-surface)] p-5 border-4 border-[var(--pixel-border)] shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] group"
                         >
                             <div className="flex justify-between items-start mb-3">
                                 <div>
-                                    <h3 className="font-bold text-gray-900 text-base">{job.name}</h3>
+                                    <h3 className="font-['Press_Start_2P'] text-[var(--pixel-text)] text-xs mb-1 uppercase leading-relaxed text-[#c0caf5]">{job.name}</h3>
                                     {job.description && (
-                                        <p className="text-sm text-gray-500 mt-0.5">{job.description}</p>
+                                        <p className="text-lg text-gray-500 mt-0.5">{job.description}</p>
                                     )}
                                 </div>
                                 <button
                                     onClick={() => handleRemoveJob(job.id)}
-                                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    className="p-2 text-red-500 hover:bg-red-900/30 border-2 border-transparent hover:border-red-500 transition-all opacity-0 group-hover:opacity-100"
                                 >
                                     <Trash2 size={16} />
                                 </button>
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <div className="flex items-center text-sm text-gray-600">
-                                    <div className="w-6 flex justify-center mr-2 text-gray-400">
+                                <div className="flex items-center text-sm text-[var(--pixel-secondary)]">
+                                    <div className="w-6 flex justify-center mr-2 opacity-70">
                                         <Clock size={16} />
                                     </div>
-                                    <span className="font-medium bg-gray-50 px-2 py-0.5 rounded text-gray-700 border border-gray-100">
+                                    <span className="font-medium bg-[var(--pixel-bg)] px-2 py-0.5 border border-[var(--pixel-border)]">
                                         {formatSchedule(job.schedule)}
                                     </span>
                                 </div>
 
                                 {job.payload && (
-                                    <div className="flex items-start text-sm text-gray-600 mt-1">
-                                        <div className="w-6 flex justify-center mr-2 text-gray-400 mt-0.5">
+                                    <div className="flex items-start text-sm text-gray-400 mt-1">
+                                        <div className="w-6 flex justify-center mr-2 opacity-70 mt-0.5">
                                             <Zap size={16} />
                                         </div>
-                                        <div className="flex-1 bg-blue-50/50 p-2 rounded-lg text-blue-800 text-xs border border-blue-100">
+                                        <div className="flex-1 bg-[var(--pixel-bg)] p-2 border border-[var(--pixel-border)] text-[var(--pixel-primary)] text-sm font-['VT323']">
                                             {job.payload.text || job.payload.message || JSON.stringify(job.payload)}
                                         </div>
                                     </div>

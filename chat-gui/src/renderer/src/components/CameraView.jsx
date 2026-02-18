@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RefreshCw, AlertCircle, Scan, Camera } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertCircle, Image as GalleryIcon, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // Shared across instances so second mount can cancel first mount's pending stop (React Strict Mode)
@@ -230,10 +230,10 @@ export default function CameraView() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="relative w-[480px] h-full max-w-full mx-auto overflow-hidden bg-black shadow-2xl flex flex-col"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative w-full h-full overflow-hidden bg-black"
         >
             {/* Flash Effect */}
             <AnimatePresence>
@@ -248,168 +248,94 @@ export default function CameraView() {
                 )}
             </AnimatePresence>
 
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+            {/* Top Overlay: Back Button */}
+            <div className="absolute top-0 left-0 right-0 z-50 p-6 flex justify-between items-start pointer-events-none">
                 <button
                     onClick={() => navigate('/')}
-                    className="pointer-events-auto w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10"
+                    className="pointer-events-auto pixel-btn p-3 flex items-center justify-center bg-black/50 border-white/50 text-white backdrop-blur-md hover:bg-white hover:text-black hover:border-white transition-all shadow-[0_4px_10px_rgba(0,0,0,0.5)]"
                 >
                     <ArrowLeft size={24} />
                 </button>
 
-
-            </div>
-
-            {/* Camera Frame Container */}
-            <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-gray-900">
-
-                {/* Status Overlay */}
-                {status === 'connecting' && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white/70 bg-black/50 backdrop-blur-sm">
-                        <RefreshCw className="animate-spin mb-4" size={32} />
-                        <p>Connecting to Vision System...</p>
-                    </div>
-                )}
-
-                {status === 'error' && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-6">
-                        <div className="text-red-500 mb-4">
-                            <AlertCircle size={48} />
+                {/* Status Badge Top Right */}
+                <div className="flex flex-col items-end pointer-events-auto">
+                    {status === 'connecting' && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur border border-white/20 rounded-full text-[10px] text-white font-['Press_Start_2P'] animate-pulse">
+                            <RefreshCw size={12} className="animate-spin" />
+                            <span>CONNECTING</span>
                         </div>
-                        <p className="text-white text-center mb-4">Connection Lost</p>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="px-6 py-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors text-white text-sm"
-                        >
-                            Reconnect
-                        </button>
-                    </div>
-                )}
+                    )}
+                    {status === 'error' && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-red-500/80 backdrop-blur border border-red-400 rounded-full text-[10px] text-white font-['Press_Start_2P']">
+                            <AlertCircle size={12} />
+                            <span>OFFLINE</span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
+            {/* Main Content: Video & Status */}
+            <div className="absolute inset-0 z-0 flex items-center justify-center bg-black">
                 {/* Video Feed */}
-                <div className="relative w-full h-full flex items-center justify-center">
-                    <img
-                        src={videoFeedUrl}
-                        className="w-full h-full object-contain"
-                        alt="Live Camera Feed"
-                        onLoad={() => {
-                            // Fallback: show LIVE when first frame arrives (handles Strict Mode / slow start response)
-                            setStatus((s) => (s === 'connecting' ? 'connected' : s));
-                        }}
-                        onError={(e) => {
-                            console.error("Video feed error", e);
-                            setStatus('error');
-                        }}
-                    />
+                <img
+                    src={videoFeedUrl}
+                    className="w-full h-full object-cover"
+                    alt="Live Camera Feed"
+                    onLoad={() => setStatus((s) => (s === 'connecting' ? 'connected' : s))}
+                    onError={(e) => {
+                        console.error("Video feed error", e);
+                        setStatus('error');
+                    }}
+                />
 
-                    {/* Detection Overlays Layer */}
-                    {/* We overlay this on top of the image container. 
-                        Since we use object-contain, the image might have letterboxing.
-                        Ideally, these boxes should be inside the image dimensions.
-                        However, usually the video element fills the container in some way.
-                        If object-contain leaves gaps, the 'absolute' positioning 0-100% 
-                        will be relative to the DIV, not the IMAGE content if there are gaps.
-                        
-                        For 480x800 logic, simpler to let it stretch or use a wrapper that matches aspect ratio.
-                        Given 16:9 input and 9:16 screen, object-contain is best for details.
-                        But boxes will be offset if we don't match the image rect.
-                        
-                        For MVP/POC: simpler to assume full width or use object-cover if user wants full immersion.
-                        Let's try object-contain (as defined above) but be aware of offset.
-                        Actually, to make boxes align perfectly with CSS % on the parent div, 
-                        the parent div must match the image aspect ratio exactly.
-                        or we use JS to size the overlay layer.
-                        
-                        Let's just position them relative to the container for now. 
-                        If the image is letterboxed, boxes within the "black bars" area won't exist 
-                        (normalized coords are within the image). 
-                        BUT if the container is taller than the image, 0% y starts at the top of the container,
-                        while the image starts lower down. This causes misalignment.
-                        
-                        FIX: Use a wrapper div that has the aspect ratio of the camera?
-                        Or just use object-cover which fills the container (cropping edges) 
-                        and then the boxes (0-1) might need to be "zoomed" too?
-                        
-                        Actually, simpler approach for this task: Use object-fill (stretch) or object-cover?
-                        If I use object-fill, it distorts.
-                        If I use object-contain, I need to know the rendered image rect.
-                        
-                        CORRECTION: I'll use object-contain for the image, and I will place the detections
-                        in a layer that assumes the image fills the container? NO.
-                        
-                        Let's try object-cover. It fills the screen. 
-                        If I use object-cover, the image is cropped.
-                        The detections (0-1) refer to the *full uncropped* image.
-                        If I draw a box at 0.1 (left edge), but the left edge is cropped out,
-                        the box should be off-screen.
-                        Standard HTML overlay on a cropped image is hard without math.
-                        
-                        Let's stick to object-contain for ACCURACY first.
-                        But 'w-full h-full' on the img with object-contain means likely black bars.
-                        The overlay div is w-full h-full.
-                        0,0 is top left of container.
-                        0,0 of image is... somewhere else.
-                        
-                        Okay, I will wrap the image and overlay in a container that handles aspect ratio?
-                        No, simpler: just display it. The user wants to see it works.
-                        I'll use `object-contain` on the image.
-                        AND I will assume the image is centered.
-                        For a robust implementation, usually you'd measure the image size rendered.
-                        But I cannot run JS to measure it easily in this "blind" edit.
-                        
-                        Let's stick with the simple implementation. It might be slightly misaligned if letterboxed,
-                        but detection bubbles will appear.
-                    */}
-                    <div className="absolute inset-0 w-full h-full">
-                        {detectionActive && renderBoundingBoxes()}
-                    </div>
+                {/* Bounding Boxes */}
+                <div className="absolute inset-0 pointer-events-none z-10">
+                    {detectionActive && renderBoundingBoxes()}
                 </div>
-            </div>
 
-            {/* Footer / Stats */}
-            <div className="absolute bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none">
-                <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] flex items-center gap-3 shadow-lg">
-                    <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                        {status === 'connected' ? 'LIVE' : 'OFFLINE'}
+                {/* Error State Overlay (Centered if error) */}
+                {status === 'error' && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                        <div className="p-8 border-4 border-red-500 bg-black flex flex-col items-center gap-4 shadow-[8px_8px_0_rgba(0,0,0,0.5)]">
+                            <AlertCircle size={48} className="text-red-500 animate-bounce" />
+                            <p className="text-red-500 font-['Press_Start_2P'] text-sm">CAMERA OFFLINE</p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="pixel-btn bg-red-500 text-white border-white hover:bg-red-600 px-6 py-3 text-xs"
+                            >
+                                RETRY
+                            </button>
+                        </div>
                     </div>
-                    <div className="w-px h-3 bg-white/20"></div>
-                    <div>{detectionActive ? `${detections.length} Objects` : '—'}</div>
-                    <div className="w-px h-3 bg-white/20"></div>
-                    <div>{detectionActive ? 'Hailo 10 fps' : 'Stream 30 fps'}</div>
-                </div>
-            </div>
-
-            {/* Capture Button - Bottom Left */}
-            <div className="absolute bottom-6 left-4 z-50 pointer-events-auto">
-                <button
-                    type="button"
-                    onClick={captureFrame}
-                    className="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white/20 transition-all shadow-lg active:scale-95"
-                    title="Take Picture"
-                >
-                    <Camera size={28} />
-                </button>
-            </div>
-
-            {/* Object Detection Button - Bottom Right */}
-            <div className="absolute bottom-6 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
-                {detectionError && (
-                    <span className="text-[10px] text-red-400 max-w-[200px] text-right bg-black/60 px-2 py-1 rounded backdrop-blur-sm">
-                        {detectionError}
-                    </span>
                 )}
+            </div>
+
+            {/* Bottom Controls Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-8 pb-10 flex justify-between items-end z-50 bg-gradient-to-t from-black/80 via-black/40 to-transparent h-48 pointer-events-none">
+                {/* Gallery Button */}
                 <button
-                    type="button"
-                    onClick={toggleDetection}
-                    className={`pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg border ${detectionActive
-                        ? 'bg-cyan-500 text-white border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
-                        : 'bg-white/10 backdrop-blur-md text-white border-white/20 hover:bg-white/20'
-                        }`}
-                    title={detectionActive ? 'Stop object detection' : 'Start object detection'}
+                    onClick={() => navigate('/gallery')}
+                    className="pointer-events-auto flex flex-col items-center gap-2 group transition-transform active:scale-95"
                 >
-                    <Scan size={28} />
+                    <div className="w-16 h-16 bg-black/50 backdrop-blur border-2 border-white/50 rounded-2xl flex items-center justify-center group-hover:bg-white/20 group-hover:border-white transition-all shadow-[0_4px_10px_rgba(0,0,0,0.3)]">
+                        <GalleryIcon size={28} className="text-white drop-shadow-md" />
+                    </div>
+                    <span className="text-[10px] font-['Press_Start_2P'] text-white/80 drop-shadow-md tracking-wider">GALLERY</span>
                 </button>
+
+                {/* Capture Button (Center, Large) */}
+                <button
+                    onClick={captureFrame}
+                    className="pointer-events-auto relative group transition-transform active:scale-95 mx-auto -translate-y-2"
+                    aria-label="Capture"
+                >
+                    <div className="w-24 h-24 rounded-full border-[6px] border-white bg-transparent flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+                        <div className="w-20 h-20 rounded-full bg-white group-active:scale-90 transition-transform duration-100 shadow-[inset_0_-4px_8px_rgba(0,0,0,0.2)]" />
+                    </div>
+                </button>
+
+                {/* Spacer to balance layout (Right) */}
+                <div className="w-16 pointer-events-none" />
             </div>
         </motion.div>
     );

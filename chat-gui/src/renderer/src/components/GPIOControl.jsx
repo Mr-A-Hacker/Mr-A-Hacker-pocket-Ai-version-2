@@ -34,11 +34,6 @@ const GPIOControl = () => {
         return () => {
             unsubscribeState();
         };
-        // Add selectedPin to dependency if we want to update it live, 
-        // but handleGpioState closure captures the *current* render's selectedPin if we don't use functional updates or refs.
-        // Actually, since selectedPin is in the closure of the effect *creation*, it will be stale.
-        // We should use a ref for selectedPin or depend on it, 
-        // but depending on it re-registers the listener which is fine.
     }, [isConnected, sendMessage, addEventListener, selectedPin]);
 
     const handlePinClick = (pin) => {
@@ -69,25 +64,25 @@ const GPIOControl = () => {
 
     const getPinColor = (pin) => {
         if (pin.type === 'power') {
-            if (pin.name.includes("5V")) return "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]";
-            return "bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.4)]";
+            if (pin.name.includes("5V")) return "bg-red-500 shadow-[2px_2px_0_0_rgba(0,0,0,1)]";
+            return "bg-orange-500 shadow-[2px_2px_0_0_rgba(0,0,0,1)]";
         }
-        if (pin.type === 'ground') return "bg-slate-800 border-2 border-slate-700";
-        if (pin.restricted) return "bg-yellow-100 border border-yellow-300";
+        if (pin.type === 'ground') return "bg-black border-2 border-[var(--pixel-border)] shadow-[2px_2px_0_0_rgba(255,255,255,0.2)]";
+        if (pin.restricted) return "bg-yellow-600 border border-yellow-800 opacity-50";
 
         // GPIO Logic
         if (pin.mode === 'output') {
             return pin.value === 1
-                ? "bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)] border border-green-400 animate-pulse"
-                : "bg-green-100 border border-green-300";
+                ? "bg-green-500 border-2 border-green-700 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"
+                : "bg-green-900 border-2 border-green-800";
         }
         if (pin.mode === 'input') {
             return pin.value === 1
-                ? "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] border border-blue-400"
-                : "bg-blue-100 border border-blue-300";
+                ? "bg-blue-500 border-2 border-blue-700 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
+                : "bg-blue-900 border-2 border-blue-800";
         }
 
-        return "bg-slate-200 border border-slate-300";
+        return "bg-slate-700 border border-slate-600";
     };
 
     // Split pins into left and right columns
@@ -95,52 +90,45 @@ const GPIOControl = () => {
     const rightColumn = pins.filter((_, i) => i % 2 !== 0);
 
     return (
-        <div className="h-full flex flex-col bg-white overflow-hidden relative text-slate-800">
-            {/* Background Gradient - Light Theme */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50 z-0" />
-
-            {/* Background Effects */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
-
+        <div className="h-full flex flex-col bg-[var(--pixel-bg)] overflow-hidden relative text-[var(--pixel-text)] font-['VT323']">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 z-10">
+            <div className="flex items-center justify-between p-4 z-10 bg-[var(--pixel-surface)] border-b-4 border-[var(--pixel-border)]">
                 <button
                     onClick={() => navigate('/')}
-                    className="p-2 hover:bg-slate-100/80 rounded-full transition-colors active:scale-95 text-slate-600"
+                    className="pixel-btn p-3 flex items-center justify-center"
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <div className="flex items-center gap-2 text-slate-700">
-                    <Activity className="text-blue-500" size={20} />
-                    <h1 className="text-lg font-bold tracking-wider">GPIO CONTROL</h1>
+                <div className="flex items-center gap-2 text-[var(--pixel-primary)]">
+                    <Activity size={20} />
+                    <h1 className="text-xl font-['Press_Start_2P'] tracking-wider">GPIO CTL</h1>
                 </div>
-                <div className="w-10" /> {/* Spacer */}
+                <div className="w-10" />
             </div>
 
-            <div className="flex-1 flex gap-4 overflow-hidden z-10 h-full p-4 pt-0">
+            <div className="flex-1 flex gap-4 overflow-hidden z-10 h-full p-4 pt-4">
 
                 {/* Pin Header Visualization */}
-                <div className="flex-1 flex items-center justify-center h-full overflow-y-auto pb-20 no-scrollbar">
-                    <div className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.05)] relative">
+                <div className="flex-1 flex items-center justify-center h-full overflow-y-auto pb-20 scroller-pixel">
+                    <div className="bg-[var(--pixel-surface)] p-6 border-4 border-[var(--pixel-border)] shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] relative">
                         {/* Board Label */}
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-4 py-1 rounded-full text-[10px] font-mono text-slate-500 border border-slate-200 shadow-sm uppercase tracking-wider">
-                            Raspberry Pi 5 Header
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[var(--pixel-bg)] px-4 py-1 border-2 border-[var(--pixel-border)] text-[10px] font-['Press_Start_2P'] text-[var(--pixel-secondary)] uppercase tracking-wider">
+                            RPI HEADER
                         </div>
 
-                        <div className="flex gap-8 mt-2">
+                        <div className="flex gap-8 mt-4">
                             {/* Left Column */}
                             <div className="flex flex-col gap-3">
                                 {leftColumn.map(pin => (
                                     <div key={pin.pin} className="flex items-center justify-end gap-3 h-8">
-                                        <span className={`text-[10px] font-mono ${pin.type === 'gpio' ? 'text-slate-700 font-semibold' : 'text-slate-400'}`}>
+                                        <span className={`text-lg ${pin.type === 'gpio' ? 'text-[var(--pixel-text)]' : 'text-gray-500'}`}>
                                             {pin.name}
                                         </span>
                                         <button
                                             onClick={() => handlePinClick(pin)}
-                                            className={`w-4 h-4 rounded-full transition-all duration-300 ${getPinColor(pin)} ${selectedPin?.pin === pin.pin ? 'ring-4 ring-blue-100 scale-125 shadow-lg' : ''}`}
+                                            className={`w-4 h-4 transition-all duration-75 ${getPinColor(pin)} ${selectedPin?.pin === pin.pin ? 'ring-2 ring-[var(--pixel-accent)] scale-125' : ''}`}
                                         />
-                                        <span className="text-[9px] text-slate-400 w-3 text-center font-mono">{pin.pin}</span>
+                                        <span className="text-[12px] text-gray-400 w-3 text-center">{pin.pin}</span>
                                     </div>
                                 ))}
                             </div>
@@ -149,12 +137,12 @@ const GPIOControl = () => {
                             <div className="flex flex-col gap-3">
                                 {rightColumn.map(pin => (
                                     <div key={pin.pin} className="flex items-center justify-start gap-3 h-8">
-                                        <span className="text-[9px] text-slate-400 w-3 text-center font-mono">{pin.pin}</span>
+                                        <span className="text-[12px] text-gray-400 w-3 text-center">{pin.pin}</span>
                                         <button
                                             onClick={() => handlePinClick(pin)}
-                                            className={`w-4 h-4 rounded-full transition-all duration-300 ${getPinColor(pin)} ${selectedPin?.pin === pin.pin ? 'ring-4 ring-blue-100 scale-125 shadow-lg' : ''}`}
+                                            className={`w-4 h-4 transition-all duration-75 ${getPinColor(pin)} ${selectedPin?.pin === pin.pin ? 'ring-2 ring-[var(--pixel-accent)] scale-125' : ''}`}
                                         />
-                                        <span className={`text-[10px] font-mono ${pin.type === 'gpio' ? 'text-slate-700 font-semibold' : 'text-slate-400'}`}>
+                                        <span className={`text-lg ${pin.type === 'gpio' ? 'text-[var(--pixel-text)]' : 'text-gray-500'}`}>
                                             {pin.name}
                                         </span>
                                     </div>
@@ -165,71 +153,71 @@ const GPIOControl = () => {
                 </div>
 
                 {/* Controls Panel (Side or Overlay) */}
-                <div className="w-48 bg-white/60 border border-white/40 backdrop-blur-xl p-4 flex flex-col gap-4 rounded-2xl shadow-sm h-fit self-center">
-                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                        Pin Controls
+                <div className="w-48 bg-[var(--pixel-surface)] border-4 border-[var(--pixel-border)] p-4 flex flex-col gap-4 shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] h-fit self-center">
+                    <h2 className="text-[10px] font-['Press_Start_2P'] text-[var(--pixel-secondary)] uppercase tracking-widest border-b-2 border-[var(--pixel-border)] pb-2 mb-2">
+                        PIN CONFIG
                     </h2>
 
                     {selectedPin ? (
-                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="flex flex-col gap-4">
                             <div>
-                                <div className="text-2xl font-black text-slate-800">{selectedPin.name.replace('GPIO ', '')}</div>
-                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">BCM: {selectedPin.bcm}</div>
+                                <div className="text-xl font-bold text-[var(--pixel-primary)]">{selectedPin.name.replace('GPIO ', 'GP-')}</div>
+                                <div className="text-sm text-gray-400 mt-0.5">BCM: {selectedPin.bcm}</div>
                             </div>
 
                             <div className="space-y-1">
-                                <div className="text-[10px] text-slate-400 uppercase font-medium">Current Mode</div>
-                                <div className={`text-sm font-bold ${selectedPin.mode === 'output' ? 'text-green-600' : selectedPin.mode === 'input' ? 'text-blue-600' : 'text-slate-400'}`}>
-                                    {selectedPin.mode.toUpperCase()}
+                                <div className="text-xs text-gray-400 uppercase">Current Mode</div>
+                                <div className={`text-lg font-bold ${selectedPin.mode === 'output' ? 'text-green-400' : selectedPin.mode === 'input' ? 'text-blue-400' : 'text-gray-400'}`}>
+                                    {selectedPin.mode ? selectedPin.mode.toUpperCase() : 'UNKNOWN'}
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <div className="text-[10px] text-slate-400 uppercase font-medium">State</div>
+                                <div className="text-xs text-gray-400 uppercase">State</div>
                                 <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${selectedPin.value ? 'bg-green-500 shadow-lg shadow-green-200' : 'bg-slate-300'}`} />
-                                    <div className="text-lg font-mono text-slate-700">{selectedPin.value === 1 ? 'HIGH' : 'LOW'}</div>
+                                    <div className={`w-3 h-3 ${selectedPin.value ? 'bg-green-500 shadow-[0_0_5px_rgba(0,255,0,0.8)]' : 'bg-gray-700'}`} />
+                                    <div className="text-xl font-bold">{selectedPin.value === 1 ? 'HIGH' : 'LOW'}</div>
                                 </div>
                             </div>
 
-                            <hr className="border-slate-100 my-1" />
+                            <hr className="border-[var(--pixel-border)] my-1" />
 
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-3">
                                 <button
                                     onClick={toggleMode}
-                                    className="px-3 py-2 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 transition-all border border-slate-200 shadow-sm active:scale-95"
+                                    className="pixel-btn bg-[var(--pixel-bg)] text-[var(--pixel-text)] text-sm py-2"
                                 >
-                                    Set to {selectedPin.mode === 'output' ? 'INPUT' : 'OUTPUT'}
+                                    SET {selectedPin.mode === 'output' ? 'INPUT' : 'OUTPUT'}
                                 </button>
 
                                 {selectedPin.mode === 'output' && (
                                     <button
                                         onClick={toggleValue}
-                                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 border ${selectedPin.value
-                                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                                            : 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+                                        className={`pixel-btn text-sm py-2 font-bold ${selectedPin.value
+                                            ? 'bg-red-900 text-red-100 border-red-500 hover:bg-red-800'
+                                            : 'bg-green-900 text-green-100 border-green-500 hover:bg-green-800'
                                             }`}
                                     >
-                                        Turn {selectedPin.value ? 'OFF' : 'ON'}
+                                        TURN {selectedPin.value ? 'OFF' : 'ON'}
                                     </button>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400 gap-2">
+                        <div className="flex flex-col items-center justify-center py-8 text-center text-gray-500 gap-2">
                             <Zap size={24} className="opacity-30" />
-                            <span className="text-xs">Select a GPIO pin<br />to configure</span>
+                            <span className="text-sm">SELECT PIN<br />TO EDIT</span>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-0 w-full flex justify-center gap-6 text-[9px] text-slate-500 uppercase tracking-wider font-medium opacity-80 z-10">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400 shadow-sm" /> Power</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-slate-800 shadow-sm" /> GND</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-200" /> Output</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-200" /> Input</div>
+            <div className="absolute bottom-4 left-0 w-full flex justify-center gap-6 text-[10px] text-gray-400 uppercase tracking-wider font-medium z-10 bg-[var(--pixel-bg)] py-2 border-t-2 border-[var(--pixel-border)]">
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-orange-500" /> Power</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-black border border-gray-600" /> GND</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-green-500" /> Output</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-500" /> Input</div>
             </div>
         </div>
     );

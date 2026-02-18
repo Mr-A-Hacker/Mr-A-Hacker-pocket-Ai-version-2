@@ -42,31 +42,31 @@ export default function MiniChat({ onClose, className }) {
     }, [sendMessage, setMessages]);
 
     return (
-        <div className={`flex flex-col h-full bg-slate-900 border-l border-slate-700 ${className}`}>
+        <div className={`flex flex-col h-full bg-[var(--pixel-bg)] text-[var(--pixel-text)] font-['VT323'] ${className}`}>
             {/* Minimal Header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-800/50">
-                <span className="text-xs font-semibold text-slate-300">Assistant</span>
-                <div className="flex items-center space-x-1">
+            <div className="flex items-center justify-between px-4 py-3 border-b-4 border-[var(--pixel-border)] bg-[var(--pixel-surface)]">
+                <span className="text-sm font-['Press_Start_2P'] text-[var(--pixel-primary)] uppercase">Assistant</span>
+                <div className="flex items-center gap-4">
                     <button
                         onClick={reset}
-                        className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
-                        title="Clear Chat"
+                        className="p-2 hover:text-red-500 transition-colors"
+                        title="RESET MEMORY"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={20} />
                     </button>
                     {onClose && (
                         <button
                             onClick={onClose}
-                            className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors"
+                            className="p-2 hover:text-[var(--pixel-accent)] transition-colors"
                         >
-                            <Minimize2 size={14} />
+                            <Minimize2 size={20} />
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto min-h-0 bg-slate-900">
+            <div className="flex-1 overflow-y-auto min-h-0 bg-[var(--pixel-bg)] p-2 scroller-pixel">
                 <MessageList
                     messages={messages}
                     streaming={streaming}
@@ -76,14 +76,12 @@ export default function MiniChat({ onClose, className }) {
             </div>
 
             {/* Input Area */}
-            <div className="p-2 border-t border-slate-800 bg-slate-800/30">
+            <div className="p-2 border-t-4 border-[var(--pixel-border)] bg-[var(--pixel-surface)]">
                 <ChatInput
                     onSend={send}
                     onAbort={abort}
                     streaming={streaming}
                     disabled={connStatus !== 'connected'}
-                // We might need to style ChatInput to be more compact via CSS or props
-                // But standard is likely fine, just constrained by width.
                 />
             </div>
         </div>

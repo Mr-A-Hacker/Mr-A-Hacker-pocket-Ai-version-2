@@ -42,41 +42,38 @@ const StatusBar = () => {
     };
 
     return (
-        <div className="w-full h-8 bg-black/80 backdrop-blur-md z-50 flex items-center justify-between px-4 text-xs font-mono border-b border-white/10 select-none">
+        <div className="w-full h-8 bg-[var(--pixel-surface)] z-50 flex items-center justify-between px-2 text-[10px] uppercase font-['Press_Start_2P'] border-b-4 border-[var(--pixel-border)] select-none">
 
             {/* Time */}
-            <div className="flex items-center gap-2 text-cyan-400">
-                <Clock size={14} />
-                <span className="font-bold tracking-wider">{stats.time}</span>
+            <div className="flex items-center gap-2 text-[var(--pixel-primary)]">
+                <Clock size={12} />
+                <span className="tracking-widest">{stats.time}</span>
             </div>
 
             {/* System Stats Container */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
 
                 {/* CPU */}
-                <div className="flex items-center gap-2 text-gray-300">
-                    <Activity size={14} className="text-blue-400" />
-                    <span className="text-gray-500">CPU:</span>
-                    <span className={`font-bold ${getStatusColor(stats.cpu_percent, 'usage')}`}>
-                        {stats.cpu_percent.toFixed(1)}%
+                <div className="flex items-center gap-1 text-[var(--pixel-text)]">
+                    <span className="text-[var(--pixel-secondary)]">CPU:</span>
+                    <span className={`${getStatusColor(stats.cpu_percent, 'usage')}`}>
+                        {Math.round(stats.cpu_percent)}%
                     </span>
                 </div>
 
                 {/* RAM */}
-                <div className="flex items-center gap-2 text-gray-300">
-                    <Cpu size={14} className="text-purple-400" />
-                    <span className="text-gray-500">RAM:</span>
-                    <span className={`font-bold ${getStatusColor(stats.memory_percent, 'usage')}`}>
-                        {stats.memory_percent.toFixed(1)}%
+                <div className="flex items-center gap-1 text-[var(--pixel-text)]">
+                    <span className="text-[var(--pixel-secondary)]">RAM:</span>
+                    <span className={`${getStatusColor(stats.memory_percent, 'usage')}`}>
+                        {Math.round(stats.memory_percent)}%
                     </span>
                 </div>
 
                 {/* Temp */}
-                <div className="flex items-center gap-2 text-gray-300">
-                    <Thermometer size={14} className="text-orange-400" />
-                    <span className="text-gray-500">TMP:</span>
-                    <span className={`font-bold ${getStatusColor(stats.temperature, 'temp')}`}>
-                        {stats.temperature.toFixed(1)}°C
+                <div className="flex items-center gap-1 text-[var(--pixel-text)]">
+                    <span className="text-[var(--pixel-secondary)]">TMP:</span>
+                    <span className={`${getStatusColor(stats.temperature, 'temp')}`}>
+                        {Math.round(stats.temperature)}°
                     </span>
                 </div>
 

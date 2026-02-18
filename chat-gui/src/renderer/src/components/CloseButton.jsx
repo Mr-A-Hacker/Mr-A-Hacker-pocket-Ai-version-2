@@ -15,11 +15,11 @@ const CloseButton = () => {
     return (
         <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-[9999] w-10 h-10 flex items-center justify-center rounded-full bg-black/20 hover:bg-red-500/80 text-white backdrop-blur-sm transition-all duration-200 border border-white/10"
+            className="absolute top-4 right-4 z-[9999] w-10 h-10 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white border-2 border-white shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
             aria-label="Close Application"
-            title="Close Application"
+            title="CLOSE SYSTEM"
         >
-            <X size={20} />
+            <X size={20} classname="pixel-icon" />
         </button>
     );
 };

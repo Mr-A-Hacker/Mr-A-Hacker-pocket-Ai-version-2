@@ -1,6 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 @import "tailwindcss";
+
+:root {
+  --pixel-bg: #1a1b26;
+  --pixel-surface: #24283b;
+  --pixel-primary: #7aa2f7;
+  --pixel-secondary: #bb9af7;
+  --pixel-accent: #9ece6a;
+  --pixel-text: #c0caf5;
+  --pixel-border: #414868;
+}
 
 @layer base {
 
@@ -8,7 +18,44 @@
   body,
   #root {
     @apply w-full h-full overflow-hidden m-0 p-0;
-    font-family: 'Inter', sans-serif;
+    font-family: 'VT323', monospace;
+    background-color: var(--pixel-bg);
+    color: var(--pixel-text);
+    image-rendering: pixelated;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Press Start 2P', cursive;
+  }
+}
+
+@layer components {
+  .pixel-box {
+    @apply border-4 border-slate-700 bg-slate-800 shadow-[4px_4px_0_0_rgba(0,0,0,0.5)];
+  }
+
+  /* Interactive Elements - Larger Touch Targets */
+  .pixel-btn {
+    @apply px-6 py-4 font-['Press_Start_2P'] text-sm border-4 border-[var(--pixel-text)] 
+    bg-[var(--pixel-surface)] hover:bg-[var(--pixel-primary)] hover:text-black 
+    active:translate-y-1 active:shadow-none transition-all shadow-[4px_4px_0_0_var(--pixel-text)]
+    flex items-center justify-center gap-2;
+  }
+
+  .pixel-input {
+    @apply font-['VT323'] text-2xl bg-[var(--pixel-bg)] border-4 border-[var(--pixel-border)] 
+    p-4 outline-none focus:border-[var(--pixel-primary)] placeholder:text-gray-600;
+  }
+  
+  .pixel-select {
+    @apply font-['VT323'] text-2xl bg-[var(--pixel-surface)] border-4 border-[var(--pixel-border)] 
+    p-4 outline-none focus:border-[var(--pixel-primary)] appearance-none
+    bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23c0caf5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')]
+    bg-[length:16px_16px] bg-[right_1rem_center] bg-no-repeat pr-10;
+  }
+
+  .pixel-card {
+     @apply bg-[var(--pixel-surface)] border-4 border-[var(--pixel-border)] p-6 shadow-[8px_8px_0_0_rgba(0,0,0,0.3)];
   }
 }
 

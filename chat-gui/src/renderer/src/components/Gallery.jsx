@@ -114,41 +114,42 @@ export default function Gallery() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="relative w-[480px] h-full max-w-full mx-auto overflow-hidden bg-slate-50 shadow-2xl flex flex-col"
+            className="relative w-full h-full max-w-full mx-auto overflow-hidden bg-[var(--pixel-bg)] flex flex-col"
         >
             {/* Header */}
-            <div className="flex items-center p-4 bg-white shadow-sm z-10">
+            <div className="p-4 z-10 flex justify-between items-center bg-[var(--pixel-surface)] border-b-4 border-[var(--pixel-border)]">
                 <button
                     onClick={() => navigate('/')}
-                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                    className="pixel-btn p-3 flex items-center justify-center"
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="ml-4 text-xl font-bold text-slate-800">Gallery</h1>
+                <h1 className="text-xl font-['Press_Start_2P'] text-[var(--pixel-primary)]">GALLERY</h1>
+                <div className="w-12"></div> {/* Spacer for centering */}
             </div>
 
             {/* Grid */}
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto p-4 scroller-pixel">
                 {loading ? (
-                    <div className="flex items-center justify-center h-full text-slate-400">
-                        Loading...
+                    <div className="flex items-center justify-center h-full text-[var(--pixel-text)] font-['Press_Start_2P'] animate-pulse">
+                        LOADING...
                     </div>
                 ) : images.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                        <p>No images found</p>
+                    <div className="flex flex-col items-center justify-center h-full text-[var(--pixel-secondary)] font-['VT323'] text-xl">
+                        <p>NO IMAGES FOUND_</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-3">
                         {images.map((img, index) => (
                             <div
                                 key={img.filename}
                                 onClick={() => handleImageClick(index)}
-                                className="aspect-[9/16] bg-slate-200 rounded-lg overflow-hidden relative group cursor-pointer"
+                                className="aspect-[9/16] bg-[var(--pixel-surface)] border-2 border-[var(--pixel-border)] relative cursor-pointer hover:border-[var(--pixel-primary)] transition-colors"
                             >
                                 <img
                                     src={`http://${window.location.hostname}:8000${img.url}`}
                                     alt={img.filename}
-                                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                    className="w-full h-full object-cover pixelated"
                                     loading="lazy"
                                 />
                             </div>
@@ -164,16 +165,16 @@ export default function Gallery() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-50 bg-black flex flex-col"
+                        className="absolute inset-0 z-50 bg-black/90 flex flex-col"
                         onClick={closeImage} // Clicking background closes
                     >
                         {/* Top Bar */}
                         <div className="absolute top-4 left-4 right-4 z-50 flex justify-between">
                             <button
                                 onClick={closeImage}
-                                className="w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 backdrop-blur-md"
+                                className="pixel-btn flex items-center justify-center p-2 bg-red-500 hover:bg-red-600 text-white border-white"
                             >
-                                <X size={24} />
+                                <X size={20} />
                             </button>
                         </div>
 
@@ -181,10 +182,10 @@ export default function Gallery() {
                         <div className="absolute bottom-6 left-6 z-50">
                             <button
                                 onClick={handleChatClick}
-                                className="px-6 py-2 rounded-full bg-blue-500/80 text-white font-medium hover:bg-blue-600/90 backdrop-blur-md shadow-lg transition-transform active:scale-95 uppercase tracking-wide text-sm flex items-center gap-2"
+                                className="pixel-btn flex items-center gap-2 bg-[var(--pixel-primary)] text-black"
                             >
-                                <MessageSquare size={18} />
-                                Chat
+                                <MessageSquare size={16} />
+                                CHAT
                             </button>
                         </div>
 
@@ -192,29 +193,29 @@ export default function Gallery() {
                         <div className="absolute bottom-6 right-6 z-50">
                             <button
                                 onClick={handleDelete}
-                                className="px-6 py-2 rounded-full bg-red-500/80 text-white font-medium hover:bg-red-600/90 backdrop-blur-md shadow-lg transition-transform active:scale-95 uppercase tracking-wide text-sm"
+                                className="pixel-btn bg-red-500 text-white hover:bg-red-600 border-white"
                             >
-                                Delete
+                                DELETE
                             </button>
                         </div>
 
                         {/* Image Container with Swipe */}
-                        <div className="flex-1 flex items-center justify-center relative w-full h-full">
+                        <div className="flex-1 flex items-center justify-center relative w-full h-full p-8">
                             {/* Nav Arrows (Desktop/Access) */}
                             {selectedImageIndex > 0 && (
                                 <button
                                     onClick={handlePrev}
-                                    className="absolute left-4 z-40 w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 backdrop-blur-md"
+                                    className="absolute left-4 z-40 pixel-btn p-2"
                                 >
-                                    <ChevronLeft size={24} />
+                                    <ChevronLeft size={20} />
                                 </button>
                             )}
                             {selectedImageIndex < images.length - 1 && (
                                 <button
                                     onClick={handleNext}
-                                    className="absolute right-4 z-40 w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 backdrop-blur-md"
+                                    className="absolute right-4 z-40 pixel-btn p-2"
                                 >
-                                    <ChevronRight size={24} />
+                                    <ChevronRight size={20} />
                                 </button>
                             )}
 
@@ -222,7 +223,7 @@ export default function Gallery() {
                                 key={images[selectedImageIndex].filename}
                                 src={`http://${window.location.hostname}:8000${images[selectedImageIndex].url}`}
                                 alt={images[selectedImageIndex].filename}
-                                className="max-w-full max-h-full object-contain"
+                                className="max-w-full max-h-full object-contain border-4 border-[var(--pixel-border)] bg-[var(--pixel-bg)] shadow-[8px_8px_0_0_rgba(255,255,255,0.2)]"
                                 initial={{ x: 300, opacity: 0 }}
                                 animate={{ x: 0, opacity: 1 }}
                                 exit={{ x: -300, opacity: 0 }}
@@ -259,30 +260,30 @@ export default function Gallery() {
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                            className="bg-[var(--pixel-surface)] border-4 border-[var(--pixel-border)] p-6 w-full max-w-sm shadow-[8px_8px_0_0_rgba(0,0,0,1)]"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <h3 className="text-lg font-bold text-slate-800 mb-4">Chat about this image</h3>
+                            <h3 className="text-sm font-['Press_Start_2P'] text-[var(--pixel-primary)] mb-4 uppercase leading-relaxed">QUERY IMAGE DATA</h3>
                             <textarea
-                                className="w-full h-32 p-3 bg-slate-100 rounded-lg text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ask a question..."
+                                className="w-full h-32 p-3 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)] text-[var(--pixel-text)] font-['VT323'] text-xl resize-none focus:outline-none focus:border-[var(--pixel-primary)]"
+                                placeholder="INPUT QUERY..."
                                 value={chatPrompt}
                                 onChange={(e) => setChatPrompt(e.target.value)}
                                 autoFocus
                             />
-                            <div className="flex justify-end gap-3 mt-4">
+                            <div className="flex justify-end gap-4 mt-6">
                                 <button
                                     onClick={() => setShowChatModal(false)}
-                                    className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium"
+                                    className="pixel-btn bg-[var(--pixel-surface)] text-[var(--pixel-text)]"
                                 >
-                                    Cancel
+                                    CANCEL
                                 </button>
                                 <button
                                     onClick={handleSendToChat}
                                     disabled={!chatPrompt.trim()}
-                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="pixel-btn bg-[var(--pixel-primary)] text-black disabled:opacity-50"
                                 >
-                                    Send
+                                    SEND
                                 </button>
                             </div>
                         </motion.div>

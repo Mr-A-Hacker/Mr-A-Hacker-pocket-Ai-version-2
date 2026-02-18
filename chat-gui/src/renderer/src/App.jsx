@@ -41,7 +41,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <WebSocketProvider>
-        <div className="flex flex-col h-screen w-screen overflow-hidden bg-black text-white">
+        <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--pixel-bg)] text-[var(--pixel-text)]">
           <StatusBar />
           <div className="flex-1 overflow-hidden relative w-full">
             <AnimatedRoutes />

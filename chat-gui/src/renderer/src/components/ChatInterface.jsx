@@ -59,7 +59,7 @@ export default function ChatInterface({ layoutId }) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="w-[480px] h-full mx-auto flex flex-col bg-white relative overflow-hidden"
+            className="w-full h-full mx-auto flex flex-col bg-[var(--pixel-bg)] relative overflow-hidden"
         >
             <ChatHeader connected={connStatus === 'connected'} onReset={reset} />
             {connStatus !== 'connected' && <ConnectionBar status={connStatus} />}

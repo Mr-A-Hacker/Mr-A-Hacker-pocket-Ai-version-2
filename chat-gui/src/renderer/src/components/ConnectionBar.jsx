@@ -8,14 +8,14 @@ export default function ConnectionBar({ status }) {
     };
 
     const styles = {
-        connected: 'bg-green-500/10 text-green-500',
-        disconnected: 'bg-red-500/15 text-red-500',
-        connecting: 'bg-yellow-500/10 text-yellow-500',
+        connected: 'bg-[var(--pixel-bg)] text-green-500 border-green-500',
+        disconnected: 'bg-[var(--pixel-bg)] text-red-500 border-red-500',
+        connecting: 'bg-[var(--pixel-bg)] text-yellow-500 border-yellow-500',
     };
 
     return (
-        <div className={`flex items-center justify-center gap-1.5 p-1.5 text-xs font-medium transition-all duration-300 ${styles[status] || ''}`}>
-            <span className={`w-2 h-2 rounded-full bg-current ${status === 'connecting' ? 'animate-pulse' : ''}`} />
+        <div className={`flex items-center justify-center gap-2 p-1 text-xs font-['Press_Start_2P'] uppercase border-2 ${styles[status] || ''}`}>
+            <span className={`w-2 h-2 ${status === 'connecting' ? 'animate-pulse' : ''} bg-current opacity-100`} />
             <span>{labels[status] || status}</span>
         </div>
     );

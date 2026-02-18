@@ -56,61 +56,69 @@ export default function HeartbeatManager() {
     };
 
     return (
-        <div className="w-[480px] h-full mx-auto flex flex-col bg-white relative overflow-hidden text-black">
+        <div className="w-full h-full mx-auto flex flex-col bg-[var(--pixel-bg)] text-[var(--pixel-text)] font-['VT323'] relative overflow-hidden">
             {/* Header */}
-            <div className="flex items-center p-4 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10">
-                <button
-                    onClick={() => navigate('/')}
-                    className="p-2 rounded-full hover:bg-gray-100 transition-colors mr-2"
-                >
-                    <ArrowLeft size={20} className="text-gray-600" />
-                </button>
-                <div className="flex-1">
-                    <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-red-600">
-                        System Heartbeat
-                    </h1>
+            <div className="flex items-center justify-between p-4 bg-[var(--pixel-surface)] border-b-4 border-[var(--pixel-border)] z-10">
+                <div className="flex items-center">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="pixel-btn p-2 mr-4"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <h1 className="text-xl font-['Press_Start_2P'] text-[var(--pixel-primary)] uppercase">Heartbeat</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Activity size={20} className={status.active ? "animate-pulse text-[var(--pixel-accent)]" : "text-[var(--pixel-border)]"} />
                 </div>
             </div>
 
-            <div className="flex-1 p-6 bg-gray-50/50 flex flex-col items-center justify-center">
+            <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
+
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
+                    backgroundImage: `linear-gradient(var(--pixel-border) 1px, transparent 1px), linear-gradient(90deg, var(--pixel-border) 1px, transparent 1px)`,
+                    backgroundSize: '20px 20px'
+                }} />
 
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8 border border-pink-50 relative overflow-hidden"
+                    className="w-full max-w-sm bg-[var(--pixel-surface)] p-8 border-4 border-[var(--pixel-border)] shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] relative"
                 >
-                    {/* Background decoration */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-pink-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50" />
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--pixel-bg)] px-2 text-[var(--pixel-primary)] font-['Press_Start_2P'] text-xs border-2 border-[var(--pixel-border)] uppercase">
+                        SYSTEM STATUS
+                    </div>
 
-                    <div className="relative z-10 flex flex-col items-center text-center">
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 transition-colors duration-500 ${status.active ? 'bg-pink-100 text-pink-600 shadow-[0_0_30px_rgba(236,72,153,0.3)]' : 'bg-gray-100 text-gray-400'}`}>
-                            <Activity size={48} className={status.active ? "animate-pulse" : ""} />
+                    <div className="flex flex-col items-center text-center mt-4">
+                        <div className={`w-24 h-24 border-4 border-[var(--pixel-text)] flex items-center justify-center mb-6 transition-colors duration-500 ${status.active ? 'bg-[var(--pixel-accent)] text-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]' : 'bg-[var(--pixel-bg)] text-[var(--pixel-border)]'}`}>
+                            <Activity size={48} className={status.active ? "animate-bounce" : ""} />
                         </div>
 
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            {status.active ? "Heartbeat Active" : "Heartbeat Inactive"}
+                        <h2 className="text-2xl font-['Press_Start_2P'] text-[var(--pixel-text)] mb-4 uppercase">
+                            {status.active ? "ONLINE" : "OFFLINE"}
                         </h2>
-                        <p className="text-gray-500 text-sm mb-8">
+                        <p className="text-[var(--pixel-secondary)] text-lg mb-8 uppercase leading-tight">
                             {status.active
-                                ? "Your agent is proactively checking for tasks in the background."
-                                : "Background monitoring is disabled."}
+                                ? "AUTOMATED SYSTEM CHECK: ENABLED"
+                                : "AUTOMATED SYSTEM CHECK: DISABLED"}
                         </p>
 
                         {/* Controls */}
                         <div className="w-full space-y-6">
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                                <span className="text-sm font-medium text-gray-700">Status</span>
+                            <div className="flex items-center justify-between p-4 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)]">
+                                <span className="text-xl font-medium uppercase">Active</span>
                                 <button
                                     onClick={toggleActive}
-                                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 ${status.active ? 'bg-green-500' : 'bg-gray-300'}`}
+                                    className={`w-16 h-8 border-2 border-[var(--pixel-text)] relative transition-all active:translate-y-1 ${status.active ? 'bg-[var(--pixel-primary)]' : 'bg-[var(--pixel-surface)]'}`}
                                 >
-                                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${status.active ? 'translate-x-7' : 'translate-x-1'}`} />
+                                    <div className={`absolute top-0 bottom-0 w-1/2 bg-black transition-all ${status.active ? 'right-0' : 'left-0'}`} />
                                 </button>
                             </div>
 
                             <div className={`transition-opacity duration-300 ${status.active ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block text-left">
-                                    Check Interval (Minutes)
+                                <label className="text-xs font-['Press_Start_2P'] text-[var(--pixel-secondary)] uppercase mb-2 block text-left">
+                                    INTERVAL (MIN)
                                 </label>
                                 <div className="flex gap-2">
                                     <input
@@ -119,11 +127,11 @@ export default function HeartbeatManager() {
                                         max="1440"
                                         value={intervalStart}
                                         onChange={(e) => setIntervalStart(parseInt(e.target.value))}
-                                        className="flex-1 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-pink-500/20 text-center font-bold text-gray-900"
+                                        className="flex-1 p-3 bg-[var(--pixel-bg)] border-2 border-[var(--pixel-border)] text-center text-xl text-[var(--pixel-text)] focus:border-[var(--pixel-primary)] outline-none font-bold"
                                     />
                                     <button
                                         onClick={handleSave}
-                                        className="bg-black text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-800 transition-colors flex items-center"
+                                        className="pixel-btn bg-[var(--pixel-primary)] text-black px-4 flex items-center justify-center"
                                     >
                                         <Save size={18} />
                                     </button>

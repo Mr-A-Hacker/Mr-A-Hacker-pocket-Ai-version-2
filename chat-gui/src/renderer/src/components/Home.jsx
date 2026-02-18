@@ -1,31 +1,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Settings, Camera, Music, Video, Image as GalleryIcon, Clock, Activity, Cpu, Code } from 'lucide-react';
+import { MessageCircle, Settings, Camera, Image as GalleryIcon, Clock, Cpu, Code } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 
-const Orbiter = ({ icon: Icon, radius, duration, initialAngle, delay = 0, onClick }) => {
-    // Calculate static position based on angle and radius
-    const radian = (initialAngle * Math.PI) / 180;
-    const x = Math.cos(radian) * radius;
-    const y = Math.sin(radian) * radius;
-
-    return (
-        <motion.div
-            className="absolute top-1/2 left-1/2 w-0 h-0 z-10 pointer-events-none"
-            initial={{ x, y }}
-        >
-            <div className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 pointer-events-auto">
-                <div
-                    onClick={onClick}
-                    className="w-24 h-24 bg-white/80 backdrop-blur-md rounded-3xl text-blue-500 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-slate-100 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center active:bg-blue-50"
-                >
-                    <Icon size={36} />
-                </div>
-            </div>
-        </motion.div>
-    );
-};
+const MenuButton = ({ icon: Icon, label, onClick, color }) => (
+    <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onClick}
+        className="pixel-btn flex flex-col items-center justify-center gap-2 w-full h-32 aspect-square"
+        style={{ borderColor: color, color: color }}
+    >
+        <Icon size={32} />
+        <span className="text-xs">{label}</span>
+    </motion.button>
+);
 
 export default function Home() {
     const navigate = useNavigate();
@@ -35,68 +25,51 @@ export default function Home() {
     };
 
     return (
-        <div className="relative w-[480px] h-full mx-auto overflow-hidden bg-white shadow-2xl">
-            {/* Background Gradient - Light Theme */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50 z-0" />
+        <div className="relative w-full h-full overflow-hidden bg-[var(--pixel-bg)] flex flex-col items-center justify-center p-4">
 
-            {/* Decorative circles */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
+            {/* Avatar - Centered */}
+            <div className="mb-8 z-10">
+                <Avatar
+                    variant="lg"
+                    animate={true}
+                    onClick={handleAvatarClick}
+                    className="cursor-pointer hover:scale-105 transition-transform"
+                />
+            </div>
+
+            {/* Title */}
+            <div className="text-center mb-6 z-10">
+                <h1 className="text-4xl text-[var(--pixel-primary)] mb-2 drop-shadow-[4px_4px_0_rgba(0,0,0,1)] tracking-widest">POCKET AI</h1>
+                <p className="text-[var(--pixel-accent)] text-lg animate-pulse">SYSTEM ONLINE</p>
+            </div>
 
             {/* Settings Button - Top Left */}
-            <div className="absolute top-6 left-6 z-20">
+            <div className="absolute top-4 left-4 z-20">
                 <button
                     onClick={() => navigate('/settings')}
-                    className="w-16 h-16 bg-white/60 backdrop-blur-md rounded-2xl text-slate-500 shadow-sm border border-slate-100 hover:bg-white hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+                    className="pixel-btn flex items-center justify-center p-4"
                 >
                     <Settings size={32} />
                 </button>
             </div>
 
-            {/* Icons Layer - Floating */}
-            <div className="absolute inset-0 z-10 pointer-events-none">
-                <div className="w-full h-full relative flex items-center justify-center">
-                    <Orbiter
-                        icon={MessageCircle} radius={150} initialAngle={270} delay={0}
-                        onClick={() => navigate('/chat')}
-                    />
-                    <Orbiter
-                        icon={Camera} radius={150} initialAngle={321} delay={0.1}
-                        onClick={() => navigate('/camera')}
-                    />
-                    <Orbiter
-                        icon={Code} radius={150} initialAngle={12} delay={0.2}
-                        onClick={() => navigate('/agent')}
-                    />
-                    <Orbiter
-                        icon={Activity} radius={150} initialAngle={63} delay={0.3}
-                        onClick={() => navigate('/heartbeat')}
-                    />
-                    <Orbiter
-                        icon={Cpu} radius={150} initialAngle={114} delay={0.4}
-                        onClick={() => navigate('/gpio')}
-                    />
-                    <Orbiter
-                        icon={Clock} radius={150} initialAngle={165} delay={0.5}
-                        onClick={() => navigate('/cron')}
-                    />
-                    <Orbiter
-                        icon={GalleryIcon} radius={150} initialAngle={216} delay={0.6}
-                        onClick={() => navigate('/gallery')}
-                    />
-                </div>
+            {/* Main Menu Grid */}
+            <div className="grid grid-cols-2 gap-4 z-10 w-full max-w-[400px]">
+                <MenuButton icon={MessageCircle} label="CHAT" onClick={() => navigate('/chat')} color="var(--pixel-primary)" />
+                <MenuButton icon={Camera} label="VISION" onClick={() => navigate('/camera')} color="var(--pixel-accent)" />
+                <MenuButton icon={GalleryIcon} label="GALLERY" onClick={() => navigate('/gallery')} color="var(--pixel-secondary)" />
+                <MenuButton icon={Code} label="AGENT" onClick={() => navigate('/agent')} color="#f7768e" />
+                <MenuButton icon={Clock} label="TASKS" onClick={() => navigate('/cron')} color="#e0af68" />
+                <MenuButton icon={Cpu} label="GPIO" onClick={() => navigate('/gpio')} color="#7dcfff" />
             </div>
 
-            {/* Avatar Layer - Centered */}
-            <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-                <div className="pointer-events-auto relative">
-                    <Avatar
-                        onClick={handleAvatarClick}
-                        variant="lg"
-                        animate={true}
-                    />
-                </div>
-            </div>
+            {/* Decorative BG Elements */}
+            <div className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                    backgroundImage: 'linear-gradient(var(--pixel-border) 1px, transparent 1px), linear-gradient(90deg, var(--pixel-border) 1px, transparent 1px)',
+                    backgroundSize: '40px 40px'
+                }}
+            />
         </div>
     );
 }
