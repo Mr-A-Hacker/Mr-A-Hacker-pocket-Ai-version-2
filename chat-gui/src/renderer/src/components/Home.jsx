@@ -1,8 +1,10 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Settings, Camera, Image as GalleryIcon, Clock, Cpu, Code } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
+import { useWebSocket } from '../contexts/WebSocketContext.jsx';
+import { useRef, useState } from 'react';
 
 const MenuButton = ({ icon: Icon, label, onClick, color }) => (
     <motion.button
@@ -19,22 +21,80 @@ const MenuButton = ({ icon: Icon, label, onClick, color }) => (
 
 export default function Home() {
     const navigate = useNavigate();
+    const { toggleVoice, startVosk, stopVosk, isRecording, isVoskRecording, voiceStatus, voskText } = useWebSocket();
 
-    const handleAvatarClick = () => {
-        navigate('/chat');
+    const pressTimer = useRef(null);
+    const [isHoldMode, setIsHoldMode] = useState(false);
+
+    const handleMouseDown = () => {
+        setIsHoldMode(false);
+        pressTimer.current = setTimeout(() => {
+            setIsHoldMode(true);
+            startVosk();
+        }, 400); // 400ms threshold for hold
+    };
+
+    const handleMouseUp = () => {
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+            pressTimer.current = null;
+        }
+
+        if (isHoldMode) {
+            stopVosk();
+            setIsHoldMode(false);
+        } else {
+            // It was a quick tap
+            toggleVoice();
+        }
+    };
+
+    // Also handle mouse leave to prevent getting stuck in hold mode
+    const handleMouseLeave = () => {
+        if (isHoldMode) {
+            stopVosk();
+            setIsHoldMode(false);
+        }
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+            pressTimer.current = null;
+        }
     };
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-[var(--pixel-bg)] flex flex-col items-center justify-center p-4">
 
             {/* Avatar - Centered */}
-            <div className="mb-8 z-10">
+            <div
+                className="mb-8 z-10 relative"
+                onMouseDown={handleMouseDown}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+            >
                 <Avatar
                     variant="lg"
                     animate={true}
-                    onClick={handleAvatarClick}
-                    className="cursor-pointer hover:scale-105 transition-transform"
+                    expression={voiceStatus}
+                    className={`cursor-pointer transition-all duration-300 ${isRecording ? 'scale-110' : 'hover:scale-105'}`}
                 />
+
+                {/* Vosk Real-time Transcription Overlay */}
+                <AnimatePresence>
+                    {isVoskRecording && voskText && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="absolute left-[90px] top-[70px] w-[180px] bg-black/80 backdrop-blur-md p-3 border-2 border-[var(--pixel-accent)] shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] z-50 rounded-lg rounded-tl-none"
+                        >
+                            <p className="text-[var(--pixel-accent)] text-[10px] leading-relaxed break-words whitespace-pre-wrap max-h-[120px] overflow-y-auto">
+                                {voskText}
+                            </p>
+                            {/* Decorative pointer arrow (top left pointing to avatar) */}
+                            <div className="absolute left-[-10px] top-[-2px] w-0 h-0 border-r-[10px] border-r-[var(--pixel-accent)] border-b-[10px] border-b-transparent" />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Title */}

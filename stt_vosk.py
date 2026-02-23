@@ -87,7 +87,7 @@ class STTEngine:
             self.audio_queue.put(in_data)
         return (None, pyaudio.paContinue)
 
-    def start_listening(self):
+    def start_listening(self, callback=None):
         if self.listening: 
             return
         
@@ -100,10 +100,11 @@ class STTEngine:
             return
 
         self.listening = True
+        self.callback = callback
         self.audio_queue = queue.Queue() # Clear the queue
         self.final_text = ""
         
-        print(f"Opening stream: {self.current_rate}Hz, {CHANNELS} channels")
+        print(f"Opening Vosk stream: {self.current_rate}Hz, {CHANNELS} channels")
         self.stream = self.p.open(format=FORMAT,
                         channels=CHANNELS,
                         rate=self.current_rate,
@@ -114,7 +115,6 @@ class STTEngine:
         
         self.thread = threading.Thread(target=self._process_audio, daemon=True)
         self.thread.start()
-        print("\n[Recording started. Press Enter to stop...]")
 
     def stop_listening(self):
         self.listening = False
@@ -156,14 +156,16 @@ class STTEngine:
                     text = result.get("text", "")
                     if text:
                         accumulated_text.append(text)
-                        print(f"\rLive: {' '.join(accumulated_text)}\033[K")
+                        if self.callback:
+                            self.callback(' '.join(accumulated_text))
                 
                 else:
                     partial_result = json.loads(self.recognizer.PartialResult())
                     partial_text = partial_result.get("partial", "")
                     if partial_text:
                         current_live = ' '.join(accumulated_text + [partial_text])
-                        print(f"\rLive: {current_live}\033[K", end="", flush=True)
+                        if self.callback:
+                            self.callback(current_live)
 
             except queue.Empty:
                 pass
@@ -175,6 +177,8 @@ class STTEngine:
             accumulated_text.append(final_text)
 
         self.final_text = ' '.join(accumulated_text).strip()
+        if self.callback:
+            self.callback(self.final_text)
 
     def terminate(self):
         self.p.terminate()

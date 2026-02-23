@@ -5,19 +5,28 @@ export default function Avatar({
     className = "",
     variant = "lg", // 'sm' | 'lg'
     onClick,
-    animate = true
+    animate = true,
+    expression: externalExpression
 }) {
     const isSmall = variant === 'sm';
     const scale = isSmall ? 0.4 : 1;
 
     // States for random behavior
+    // Expressions: neutral, happy, thinking, surprised, listening, speaking
+    const [expression, setExpression] = useState('neutral');
     const [blink, setBlink] = useState(false);
     const [glitch, setGlitch] = useState(false);
-    const [expression, setExpression] = useState('neutral'); // neutral, happy, thinking, surprised
+
+    // Sync external expression prop if provided
+    useEffect(() => {
+        if (externalExpression) {
+            setExpression(externalExpression);
+        }
+    }, [externalExpression]);
 
     // Random blinking
     useEffect(() => {
-        if (!animate) return;
+        if (!animate || expression === 'listening') return;
         const interval = setInterval(() => {
             if (Math.random() > 0.7) {
                 setBlink(true);
@@ -25,11 +34,11 @@ export default function Avatar({
             }
         }, 2000);
         return () => clearInterval(interval);
-    }, [animate]);
+    }, [animate, expression]);
 
-    // Random Personality / Expression Changes
+    // Random Personality / Expression Changes (only when idle)
     useEffect(() => {
-        if (!animate) return;
+        if (!animate || (expression !== 'neutral' && expression !== 'idle')) return;
         const interval = setInterval(() => {
             const rand = Math.random();
             if (rand > 0.8) {
@@ -41,11 +50,11 @@ export default function Avatar({
             }
         }, 4000);
         return () => clearInterval(interval);
-    }, [animate]);
+    }, [animate, expression]);
 
     // Random glitch effect
     useEffect(() => {
-        if (!animate) return;
+        if (!animate || expression === 'speaking') return;
         const interval = setInterval(() => {
             if (Math.random() > 0.95) { // Less frequent glitch
                 setGlitch(true);
@@ -53,7 +62,7 @@ export default function Avatar({
             }
         }, 5000);
         return () => clearInterval(interval);
-    }, [animate]);
+    }, [animate, expression]);
 
     // Pixel sizes
     const pixelSize = 4;
@@ -89,6 +98,14 @@ export default function Avatar({
                 repeat: Infinity,
                 ease: "easeInOut"
             }
+        },
+        speaking: {
+            y: [0, -2, 0],
+            transition: {
+                duration: 0.2,
+                repeat: Infinity,
+                ease: "linear"
+            }
         }
     };
 
@@ -109,8 +126,31 @@ export default function Avatar({
                 repeat: Infinity,
                 ease: "easeInOut"
             }
+        },
+        listening: {
+            scale: [1, 1.3, 1],
+            rotate: [-15, 15, -15],
+            transition: {
+                duration: 0.4,
+                repeat: Infinity,
+                ease: "easeInOut"
+            }
         }
     };
+
+    const haloVariants = {
+        thinking: {
+            scale: [1, 1.15, 1],
+            opacity: [0.3, 0.6, 0.3],
+            transition: {
+                duration: 0.8,
+                repeat: Infinity,
+                ease: "easeInOut"
+            }
+        }
+    };
+    // Sync thinking and processing
+    const isThinking = expression === 'thinking' || expression === 'processing';
 
     // Expression-based Eye Variants
     const getEyeScale = (side) => {
@@ -120,9 +160,27 @@ export default function Avatar({
             case 'happy':
                 return { scaleY: 0.5, translateY: -5, borderRadius: '50%' }; // squinty/happy
             case 'thinking':
-                return side === 'left' ? { scaleY: 1 } : { scaleY: 0.4 }; // one eye raised/squinted
-            case 'surprised':
-                return { scale: 1.2 };
+            case 'processing':
+                return {
+                    scale: [1, 1.2, 1],
+                    boxShadow: [
+                        '0 0 10px #00ffff',
+                        '0 0 30px #00ffff',
+                        '0 0 10px #00ffff'
+                    ]
+                };
+            case 'listening':
+                return {
+                    scale: [1, 1.1, 1],
+                    background: '#ff4444',
+                    boxShadow: [
+                        '0 0 10px #ff0000',
+                        '0 0 25px #ff0000',
+                        '0 0 10px #ff0000'
+                    ]
+                };
+            case 'speaking':
+                return { scaleY: [1, 0.8, 1] };
             default:
                 return { scaleY: 1 };
         }
@@ -146,7 +204,7 @@ export default function Avatar({
                     position: 'relative',
                 }}
                 variants={floatVariants}
-                animate={animate ? "animate" : "initial"}
+                animate={animate ? (expression === 'speaking' ? "speaking" : "animate") : "initial"}
             >
                 {/* --- ROBOT HEAD CONSTRUCTION --- */}
                 <motion.div
@@ -154,15 +212,47 @@ export default function Avatar({
                     animate={glitch ? "glitch" : "idle"}
                     className="relative w-full h-full"
                 >
+                    {/* Thinking Halo */}
+                    <AnimatePresence>
+                        {isThinking && (
+                            <motion.div
+                                className="absolute inset-4 bg-[#00ffff]/20 blur-xl"
+                                variants={haloVariants}
+                                animate="thinking"
+                                style={{ borderRadius: '20%' }}
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    {/* Thinking Rings (Mental Waves) */}
+                    <AnimatePresence>
+                        {isThinking && [1, 2].map((i) => (
+                            <motion.div
+                                key={i}
+                                className="absolute inset-0 border-2 border-[#00ffff]/40"
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1.5, opacity: 0 }}
+                                transition={{
+                                    duration: 1.5,
+                                    delay: i * 0.75,
+                                    repeat: Infinity,
+                                    ease: "easeOut"
+                                }}
+                                style={{ borderRadius: '20%' }}
+                            />
+                        ))}
+                    </AnimatePresence>
                     {/* Antenna */}
                     <motion.div
                         className="absolute left-1/2 top-0"
                         style={{ x: '-50%', transformOrigin: 'bottom center' }}
                         variants={antennaVariants}
-                        animate={animate ? "animate" : "initial"}
+                        animate={animate ? (expression === 'listening' ? "listening" : "animate") : "initial"}
                     >
                         <div className="w-1 h-6 bg-[var(--pixel-secondary)] mx-auto" />
-                        <div className="w-3 h-3 bg-[var(--pixel-accent)] relative -top-1 animate-pulse rounded-none" />
+                        <div
+                            className={`w-3 h-3 relative -top-1 rounded-none ${expression === 'listening' ? 'bg-[#ff0000] animate-pulse duration-75' : 'bg-[var(--pixel-accent)] animate-pulse'}`}
+                        />
                     </motion.div>
 
                     {/* Head Shape (Main Box) */}
@@ -190,13 +280,23 @@ export default function Avatar({
                             <motion.div
                                 className="w-5 h-8 bg-[#00ffff] shadow-[0_0_10px_#00ffff]"
                                 animate={getEyeScale('left')}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 300,
+                                    damping: 20,
+                                    repeat: expression === 'listening' || expression === 'speaking' ? Infinity : 0
+                                }}
                             />
                             {/* Right Eye */}
                             <motion.div
                                 className="w-5 h-8 bg-[#00ffff] shadow-[0_0_10px_#00ffff]"
                                 animate={getEyeScale('right')}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 300,
+                                    damping: 20,
+                                    repeat: expression === 'listening' || expression === 'speaking' ? Infinity : 0
+                                }}
                             />
                         </div>
 
@@ -204,10 +304,15 @@ export default function Avatar({
                         <motion.div
                             className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-[#00ffff] opacity-80"
                             animate={{
-                                height: expression === 'happy' ? 4 : 2,
+                                height: expression === 'speaking' ? [2, 6, 2, 4, 1] : (expression === 'happy' ? 4 : 2),
                                 width: expression === 'happy' ? 24 : 12,
                                 opacity: expression === 'neutral' ? 0 : 0.8
                             }}
+                            transition={expression === 'speaking' ? {
+                                duration: 0.3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            } : {}}
                         />
                     </div>
 

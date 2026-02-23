@@ -9,6 +9,10 @@ export function WebSocketProvider({ children }) {
     const [messages, setMessages] = useState([]); // Chat messages
     const [streamText, setStreamText] = useState('');
     const [streaming, setStreaming] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [isVoskRecording, setIsVoskRecording] = useState(false);
+    const [voiceStatus, setVoiceStatus] = useState('idle'); // idle | listening | thinking | speaking
+    const [voskText, setVoskText] = useState('');
 
     // Generic event listeners for other components
     const eventListeners = useRef({});
@@ -84,6 +88,23 @@ export function WebSocketProvider({ children }) {
                 setStreamText('');
                 setStreaming(false);
                 break;
+            case 'voice_status':
+                setVoiceStatus(data.status);
+                setIsRecording(data.status === 'listening');
+                break;
+            case 'voice_transcription':
+                // Whisper transcription (final)
+                setMessages((prev) => [...prev, { role: 'user', text: data.text }]);
+                setVoskText('');
+                break;
+            case 'vosk_partial':
+                setVoskText(data.text || '');
+                break;
+            case 'vosk_final':
+                // Final Vosk result
+                setMessages((prev) => [...prev, { role: 'user', text: data.text }]);
+                setVoskText('');
+                break;
             default:
                 break;
         }
@@ -138,14 +159,35 @@ export function WebSocketProvider({ children }) {
             console.warn("WS not connected, cannot send", type);
         }
     }, []);
+    const toggleVoice = useCallback(() => {
+        sendMessage('toggle_voice');
+    }, [sendMessage]);
+
+    const startVosk = useCallback(() => {
+        setIsVoskRecording(true);
+        setVoskText('');
+        sendMessage('vosk_start');
+    }, [sendMessage]);
+
+    const stopVosk = useCallback(() => {
+        setIsVoskRecording(false);
+        sendMessage('vosk_stop');
+    }, [sendMessage]);
 
     const value = {
         connStatus,
         messages,
-        setMessages, // exposed for optimistic updates if needed
+        setMessages,
         streamText,
         streaming,
+        isRecording: isRecording || isVoskRecording,
+        isVoskRecording,
+        voiceStatus,
+        voskText,
         sendMessage,
+        toggleVoice,
+        startVosk,
+        stopVosk,
         addEventListener
     };
 
