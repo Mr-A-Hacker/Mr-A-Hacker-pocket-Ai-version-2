@@ -2,35 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, X, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config.js';
+import { apiFetch } from '../apiClient.js';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorMessage from './ErrorMessage';
 
 export default function Gallery() {
     const navigate = useNavigate();
     const [images, setImages] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedImageIndex, setSelectedImageIndex] = useState(null);
     const [showChatModal, setShowChatModal] = useState(false);
     const [chatPrompt, setChatPrompt] = useState('');
-
-    const galleryUrl = `http://${window.location.hostname}:8000/gallery/images`;
-    const deleteUrl = `http://${window.location.hostname}:8000/gallery/images/`;
 
     useEffect(() => {
         fetchImages();
     }, []);
 
-    const fetchImages = () => {
-        fetch(galleryUrl)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    setImages(data.images);
-                }
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error('Failed to load images:', err);
-                setLoading(false);
-            });
+    const fetchImages = async () => {
+        setError(null);
+        try {
+            const data = await apiFetch('/gallery/images');
+            if (data.status === 'success') {
+                setImages(data.images || []);
+            }
+        } catch (err) {
+            setError(err?.message || 'Failed to load images');
+            console.error('Failed to load images:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleImageClick = (index) => {
@@ -51,10 +53,8 @@ export default function Gallery() {
         if (!confirm('Are you sure you want to delete this image?')) return;
 
         try {
-            const res = await fetch(`${deleteUrl}${img.filename}`, {
-                method: 'DELETE',
-            });
-            const data = await res.json();
+            setError(null);
+            const data = await apiFetch(`/gallery/images/${img.filename}`, { method: 'DELETE' });
             if (data.status === 'success') {
                 const newImages = images.filter((_, i) => i !== selectedImageIndex);
                 setImages(newImages);
@@ -64,11 +64,11 @@ export default function Gallery() {
                     setSelectedImageIndex(newImages.length - 1);
                 }
             } else {
-                alert('Failed to delete image: ' + data.message);
+                setError(data.message || 'Failed to delete image');
             }
-        } catch (error) {
-            console.error('Error deleting image:', error);
-            alert('Error deleting image');
+        } catch (err) {
+            setError(err?.message || 'Error deleting image');
+            console.error('Error deleting image:', err);
         }
     };
 
@@ -128,12 +128,14 @@ export default function Gallery() {
                 <div className="w-12"></div> {/* Spacer for centering */}
             </div>
 
+            {error && (
+                <ErrorMessage message={error} onRetry={() => { setError(null); fetchImages(); }} />
+            )}
+
             {/* Grid */}
             <div className="flex-1 overflow-y-auto p-4 scroller-pixel">
                 {loading ? (
-                    <div className="flex items-center justify-center h-full text-[var(--pixel-text)] font-['Press_Start_2P'] animate-pulse">
-                        LOADING...
-                    </div>
+                    <LoadingSpinner label="LOADING..." className="h-full" />
                 ) : images.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-[var(--pixel-secondary)] font-['VT323'] text-xl">
                         <p>NO IMAGES FOUND_</p>
@@ -147,7 +149,7 @@ export default function Gallery() {
                                 className="aspect-[9/16] bg-[var(--pixel-surface)] border-2 border-[var(--pixel-border)] relative cursor-pointer hover:border-[var(--pixel-primary)] transition-colors"
                             >
                                 <img
-                                    src={`http://${window.location.hostname}:8000${img.url}`}
+                                    src={`${API_BASE_URL}${img.url}`}
                                     alt={img.filename}
                                     className="w-full h-full object-cover pixelated"
                                     loading="lazy"
@@ -221,7 +223,7 @@ export default function Gallery() {
 
                             <motion.img
                                 key={images[selectedImageIndex].filename}
-                                src={`http://${window.location.hostname}:8000${images[selectedImageIndex].url}`}
+                                src={`${API_BASE_URL}${images[selectedImageIndex].url}`}
                                 alt={images[selectedImageIndex].filename}
                                 className="max-w-full max-h-full object-contain border-4 border-[var(--pixel-border)] bg-[var(--pixel-bg)] shadow-[8px_8px_0_0_rgba(255,255,255,0.2)]"
                                 initial={{ x: 300, opacity: 0 }}

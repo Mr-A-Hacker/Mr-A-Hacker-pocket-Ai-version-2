@@ -26,6 +26,61 @@ A **Raspberry Pi 5**–focused, local-first AI assistant with voice, chat, and c
 
 ---
 
+## Quick start
+
+From the **project root** (the folder that contains `app.py` and `requirements.txt`):
+
+1. **Backend**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   cp .env.example .env       # optional: edit .env to change port or paths
+   python app.py
+   ```
+2. **Frontend** (in a second terminal; start the backend first)
+   ```bash
+   cd chat-gui
+   npm install
+   npm run dev
+   ```
+3. The Electron window opens and connects to the backend. The **first run** may take several minutes while models download.
+
+---
+
+## Running the app
+
+1. **Start the backend** — from the project root with your venv activated:
+   ```bash
+   python app.py
+   ```
+   The server listens on `http://0.0.0.0:8000` (or the port set in `.env`). Leave this terminal running.
+
+2. **Start the GUI** — in a second terminal:
+   ```bash
+   cd chat-gui
+   npm run dev
+   ```
+   The backend must be running first so the GUI can connect to the API and WebSockets.
+
+3. **Optional:** Copy `.env.example` to `.env` to change `PORT`, paths, or model IDs without editing code.
+
+### One-click desktop launcher (Raspberry Pi OS desktop)
+
+To start the whole app (backend + GUI) from a desktop icon:
+
+1. Copy the desktop entry to your Desktop and make it executable (use your actual project path if different):
+   ```bash
+   cp /home/pocket-ai/Documents/pocket-ai/scripts/pocket-ai.desktop ~/Desktop/
+   chmod +x ~/Desktop/pocket-ai.desktop
+   ```
+2. If your project is not at `/home/pocket-ai/Documents/pocket-ai`, edit the copied file: set `Exec=` and `Path=` to your project’s path (e.g. `Exec=bash /home/pi/pocket-ai/scripts/start-pocket-ai.sh` and `Path=/home/pi/pocket-ai`).
+3. Double-click **Pocket AI** on the Desktop. A terminal will open (with backend logs); the Electron window will open when the backend is ready. When you close the Electron window, the backend stops too.
+
+To run Pocket AI automatically at login, copy the same `.desktop` file to `~/.config/autostart/` instead of `~/Desktop/`.
+
+---
+
 ## Prerequisites (Raspberry Pi 5)
 
 | Requirement | Notes |
@@ -328,7 +383,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If PyAudio fails to build, ensure you ran step 1 (`portaudio19-dev`).
+If PyAudio fails to build, ensure you ran step 1 (`portaudio19-dev`). Use the project's `.venv` for all installs so dependency versions match; avoid mixing system and venv packages.
+
+#### Optional: semantic routing
+
+To route prompts to different LLMs (basic / thinking / tool-calling), install the semantic router:
+`pip install "semantic-router[local]"`
+Without it, the backend falls back to the basic chat model. The first time the router is used it downloads a small embedding model (~67 MB) from Hugging Face and caches it under your project `models/` folder so it only happens once.
 
 ### 4. Models: what downloads where
 
@@ -418,7 +479,7 @@ The GUI expects the backend at **port 8000** on the same machine. To use the GUI
 
 ## Other setup notes (Pi 5 gotchas)
 
-- **Port 8000:** Nothing else should use it. If needed, change the port in `app.py` and the frontend’s backend URL.
+- **Port 8000:** Nothing else should use it. If needed, set `PORT` in `.env` (see `.env.example`) and the frontend’s API config (or VITE_API_PORT in chat-gui).
 - **First run is slow:** Qwen (~500 MB), Piper, and Whisper download on first use. Use a stable connection and enough free space (several GB).
 - **Microphone on Pi:** Prefer a USB microphone. Ensure your user is in the `audio` group:  
   `groups` (check for `audio`); if missing:  
@@ -429,9 +490,23 @@ The GUI expects the backend at **port 8000** on the same machine. To use the GUI
   aplay -l
   ```
   Then change the `-D plughw:X,Y` in `tts_piper.py` to match your card (e.g. `plughw:0,0` for the built-in jack, or the correct `hw:x,y` for your USB device).
-- **Camera:** If the camera stream fails, check: camera enabled in `raspi-config`, cable seated, and `libcamera-hello` or `python3 -c "from picamera2 import Picamera2; print('ok')"` working.
+- **Camera:** If the camera stream fails, check: camera enabled in `raspi-config`, cable seated, and `rpicam-hello` or `python3 -c "from picamera2 import Picamera2; print('ok')"` working.
 - **Running headless:** You can run only the backend on the Pi and use the GUI from a laptop/desktop by pointing it at `http://<pi-ip>:8000` (and updating the frontend config if needed).
 - **CORS:** The backend allows all origins (`*`); for production you’d restrict this.
+
+---
+
+## Development and performance
+
+- **Dev server with auto-reload:**  
+  `uvicorn app:app --reload --host 0.0.0.0 --port 8000`  
+  (or set `PORT` in `.env`). Use this during development so the backend restarts when you change Python files.
+
+- **Production:**  
+  Run with a single process: `python app.py` or `uvicorn app:app --host 0.0.0.0 --port 8000`. Do not use multiple workers: the app keeps in-memory state (LLM, camera, scheduler). For more throughput you would need to refactor to a stateless design.
+
+- **Startup time:**  
+  The first run loads both the chat LLM (Qwen) and the tool-calling model (Function Gemma); this can take a minute. Later requests use the cached models.
 
 ---
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw, AlertCircle, Image as GalleryIcon, Camera, Scan } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL, WS_BASE_URL } from '../config.js';
 
 // Shared across instances so second mount can cancel first mount's pending stop (React Strict Mode)
 const pendingStopTimeoutRef = { current: null };
@@ -23,13 +24,13 @@ export default function CameraView() {
     const videoContainerRef = useRef(null);
     const [containerSize, setContainerSize] = useState({ width: 1, height: 1 });
 
-    const videoFeedUrl = `http://${window.location.hostname}:8000/video_feed`;
-    const wsUrl = `ws://${window.location.hostname}:8000/ws/detections`;
-    const startUrl = `http://${window.location.hostname}:8000/camera/start`;
-    const stopUrl = `http://${window.location.hostname}:8000/camera/stop`;
-    const detectionStartUrl = `http://${window.location.hostname}:8000/camera/detection/start`;
-    const detectionStopUrl = `http://${window.location.hostname}:8000/camera/detection/stop`;
-    const captureUrl = `http://${window.location.hostname}:8000/camera/capture`;
+    const videoFeedUrl = `${API_BASE_URL}/video_feed`;
+    const wsUrl = `${WS_BASE_URL}/ws/detections`;
+    const startUrl = `${API_BASE_URL}/camera/start`;
+    const stopUrl = `${API_BASE_URL}/camera/stop`;
+    const detectionStartUrl = `${API_BASE_URL}/camera/detection/start`;
+    const detectionStopUrl = `${API_BASE_URL}/camera/detection/stop`;
+    const captureUrl = `${API_BASE_URL}/camera/capture`;
 
     useEffect(() => {
         let isMounted = true;

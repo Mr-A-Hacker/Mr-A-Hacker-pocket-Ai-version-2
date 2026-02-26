@@ -4,12 +4,15 @@ Task scheduler: run FunctionGemma (tool_ai) at scheduled times.
 - Schedule: run at a specific date/time once → new conversation per run.
 """
 import json
+import logging
 import os
-import uuid
 import time
+import uuid
 from typing import Any, Callable, Dict, List, Optional
 
-JOBS_FILE = "task_jobs.json"
+from config import JOBS_FILE
+
+logger = logging.getLogger(__name__)
 _scheduler = None
 _conv_manager = None
 
@@ -47,13 +50,13 @@ def _run_job(job_id: str) -> None:
         return
     prompt = _get_prompt_from_payload(job.get("payload") or {})
     if not prompt:
-        print(f"[task_scheduler] Job {job_id} has no prompt, skipping.")
+        logger.warning("[task_scheduler] Job %s has no prompt, skipping.", job_id)
         return
     try:
         import tool_ai
         tool_call_raw, tool_result = tool_ai.run_task_for_backend(prompt)
     except Exception as e:
-        print(f"[task_scheduler] tool_ai failed for job {job_id}: {e}")
+        logger.warning("[task_scheduler] tool_ai failed for job %s: %s", job_id, e)
         return
     user_msg = {"role": "user", "content": prompt}
     result_text = str(tool_result) if tool_result is not None else "No tool call produced."
@@ -68,7 +71,7 @@ def _run_job(job_id: str) -> None:
             conv["messages"].append(user_msg)
             conv["messages"].extend(assistant_msgs)
             _conv_manager.update_conversation(conv_id, conv["messages"])
-            print(f"[task_scheduler] Appended to conversation {conv_id} for job {job_id}")
+            logger.info("[task_scheduler] Appended to conversation %s for job %s", conv_id, job_id)
         else:
             conv = _conv_manager.create_conversation(title=job.get("name", "Task"), messages=[user_msg] + assistant_msgs)
             job["conversation_id"] = conv["id"]
@@ -77,7 +80,7 @@ def _run_job(job_id: str) -> None:
                     jobs[i] = job
                     break
             _save_jobs(jobs)
-            print(f"[task_scheduler] Recreated conversation for job {job_id}")
+            logger.info("[task_scheduler] Recreated conversation for job %s", job_id)
     else:
         title = (job.get("name") or prompt[:30] or "Task").strip()
         if len(title) > 30:
@@ -90,7 +93,7 @@ def _run_job(job_id: str) -> None:
                     jobs[i] = job
                     break
             _save_jobs(jobs)
-        print(f"[task_scheduler] Created conversation {conv['id']} for job {job_id}")
+        logger.info("[task_scheduler] Created conversation %s for job %s", conv['id'], job_id)
 
 
 def init_scheduler(conv_manager) -> "APScheduler":
@@ -108,7 +111,7 @@ def init_scheduler(conv_manager) -> "APScheduler":
     for job in jobs:
         _schedule_one(job)
     _scheduler.start()
-    print("[task_scheduler] Started.")
+    logger.info("[task_scheduler] Started.")
     return _scheduler
 
 

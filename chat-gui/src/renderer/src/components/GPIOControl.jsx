@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { ArrowLeft, RefreshCw, Zap, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from './LoadingSpinner';
 
 const GPIOControl = () => {
     const { sendMessage, addEventListener, connStatus } = useWebSocket();
@@ -110,6 +111,9 @@ const GPIOControl = () => {
 
                 {/* Pin Header Visualization */}
                 <div className="flex-1 flex items-center justify-center h-full overflow-y-auto pb-20 scroller-pixel">
+                    {loading && pins.length === 0 ? (
+                        <LoadingSpinner label="CONNECTING..." className="h-full" />
+                    ) : (
                     <div className="bg-[var(--pixel-surface)] p-6 border-4 border-[var(--pixel-border)] shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] relative">
                         {/* Board Label */}
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[var(--pixel-bg)] px-4 py-1 border-2 border-[var(--pixel-border)] text-[10px] font-['Press_Start_2P'] text-[var(--pixel-secondary)] uppercase tracking-wider">
@@ -150,6 +154,7 @@ const GPIOControl = () => {
                             </div>
                         </div>
                     </div>
+                    )}
                 </div>
 
                 {/* Controls Panel (Side or Overlay) */}

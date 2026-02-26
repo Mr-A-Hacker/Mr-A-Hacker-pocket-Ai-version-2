@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Thermometer, Cpu, Clock } from 'lucide-react';
+import { apiFetch } from '../apiClient.js';
 
 const StatusBar = () => {
     const [stats, setStats] = useState({
@@ -12,18 +13,15 @@ const StatusBar = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const response = await fetch('http://localhost:8000/system/stats');
-                if (response.ok) {
-                    const data = await response.json();
-                    setStats(data);
-                }
+                const data = await apiFetch('/system/stats');
+                setStats(data);
             } catch (error) {
                 console.error('Failed to fetch system stats:', error);
             }
         };
 
         fetchStats();
-        const interval = setInterval(fetchStats, 2000); // Update every 2 seconds
+        const interval = setInterval(fetchStats, 2000);
 
         return () => clearInterval(interval);
     }, []);

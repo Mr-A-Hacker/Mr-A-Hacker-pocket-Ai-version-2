@@ -2,13 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Power } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config.js';
 
 export default function Settings() {
     const navigate = useNavigate();
 
     const handleCloseApp = async () => {
         try {
-            await fetch('http://localhost:8000/shutdown', { method: 'POST' });
+            await fetch(`${API_BASE_URL}/shutdown`, { method: 'POST' });
         } catch (e) {
             console.error('Failed to notify backend of shutdown:', e);
         }

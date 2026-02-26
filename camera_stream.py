@@ -1,16 +1,20 @@
-import os
-import sys
-import time
-import psutil
-import multiprocessing
-import threading
-import cv2
-import glob
 import asyncio
 import json
+import logging
+import multiprocessing
+import os
+import sys
+import threading
+import time
 from pathlib import Path
+
+import cv2
+import glob
+import psutil
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
+
+logger = logging.getLogger(__name__)
 
 # Project root for hailo_od and default HEF
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -61,7 +65,7 @@ def run_stream_process(
     try:
         picam2 = init_camera()
     except Exception as e:
-        print(f"Camera init failed: {e}")
+        logger.error("Camera init failed: %s", e)
         return
 
     frame_count = 0
@@ -74,7 +78,7 @@ def run_stream_process(
                     break
                 except Exception as e:
                     if attempt + 1 >= CAMERA_MAX_CAPTURE_RETRIES:
-                        print(f"ERROR: Device timeout detected, attempting a restart!!! ({e})")
+                        logger.error("Device timeout detected, attempting a restart: %s", e)
                         stop_camera_safe(picam2)
                         picam2 = None
                         time.sleep(CAMERA_RESTART_DELAY)
@@ -83,7 +87,7 @@ def run_stream_process(
                         try:
                             picam2 = init_camera()
                         except Exception as e2:
-                            print(f"Camera restart failed: {e2}")
+                            logger.error("Camera restart failed: %s", e2)
                             return
                         break
                     time.sleep(0.1)
@@ -150,12 +154,12 @@ def _run_detection_worker():
         from hailo_od.toolbox import get_labels, load_json_file, default_preprocess
         from hailo_od.object_detection_post_process import extract_detections
     except Exception as e:
-        print(f"[detection] hailo_od import failed: {e}")
+        logger.warning("[detection] hailo_od import failed: %s", e)
         return
 
     hef_path = str(DEFAULT_HEF)
     if not os.path.isfile(hef_path):
-        print(f"[detection] HEF not found: {hef_path}")
+        logger.warning("[detection] HEF not found: %s", hef_path)
         return
 
     result_holder = []
@@ -189,9 +193,9 @@ def _run_detection_worker():
                     json.load(open(CONFIG_PATH)) if CONFIG_PATH.exists() else
                     {"visualization_params": {"score_thres": 0.25, "max_boxes_to_draw": 50}}
                 )
-                print("[detection] Hailo model loaded")
+                logger.info("[detection] Hailo model loaded")
             except Exception as e:
-                print(f"[detection] model load failed: {e}")
+                logger.warning("[detection] model load failed: %s", e)
                 time.sleep(1)
                 continue
 
@@ -208,7 +212,7 @@ def _run_detection_worker():
             infer.run([preprocessed], on_done)
             done_ev.wait(timeout=5.0)
         except Exception as e:
-            print(f"[detection] inference error: {e}")
+            logger.warning("[detection] inference error: %s", e)
             continue
 
         if not result_holder or result_holder[0][0] != "ok":
@@ -225,7 +229,7 @@ def _run_detection_worker():
                 dets_list = raw if isinstance(raw, list) else [raw]
             det_dict = extract_detections(frame, dets_list, config_data)
         except Exception as e:
-            print(f"[detection] postprocess error: {e}")
+            logger.warning("[detection] postprocess error: %s", e)
             continue
 
         boxes = det_dict["detection_boxes"]
@@ -250,7 +254,7 @@ def _run_detection_worker():
             infer.close()
         except Exception:
             pass
-    print("[detection] worker stopped")
+    logger.info("[detection] worker stopped")
 
 
 def _raw_to_per_class_list(raw):
@@ -384,7 +388,7 @@ async def capture_image():
         
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         cv2.imwrite(save_path, frame_bgr)
-        print(f"Captured: {save_path}")
+        logger.info("Captured: %s", save_path)
         return {"status": "success", "filename": filename}
     except Exception as e:
         import traceback
@@ -440,7 +444,7 @@ async def detection_websocket(websocket: WebSocket):
         _detection_loop = asyncio.get_running_loop()
     with _detection_ws_lock:
         _detection_ws_set.add(websocket)
-    print("Detection WebSocket connected")
+    logger.info("Detection WebSocket connected")
     try:
         while True:
             try:
@@ -452,4 +456,4 @@ async def detection_websocket(websocket: WebSocket):
     finally:
         with _detection_ws_lock:
             _detection_ws_set.discard(websocket)
-        print("Detection WebSocket disconnected")
+        logger.info("Detection WebSocket disconnected")

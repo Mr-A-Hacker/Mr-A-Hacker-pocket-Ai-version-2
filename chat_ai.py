@@ -1,17 +1,25 @@
-import os
-import json
-import uuid
-import time
+"""
+Chat and voice pipeline: conversation CRUD, WebSocket chat, STT → LLM → TTS.
+"""
 import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
-from pydantic import BaseModel
-from llama_cpp import Llama
-from huggingface_hub import hf_hub_download
-from typing import List, Optional
+import json
+import logging
+import os
 import re
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from huggingface_hub import hf_hub_download
+from llama_cpp import Llama
+from pydantic import BaseModel
 from stt_whisper import STTEngine as WhisperEngine
 from stt_vosk import STTEngine as VoskEngine
 from tts_piper import PocketAudio, split_sentences
+
+logger = logging.getLogger(__name__)
+
 
 # Semantic router: route prompt to qwen_basic / qwen_thinking / function_gemma
 def _get_route(prompt: str) -> str:
@@ -19,15 +27,17 @@ def _get_route(prompt: str) -> str:
         from semantic_router_ai import get_route
         return get_route(prompt)
     except Exception as e:
-        print(f"[chat_ai] semantic router failed: {e}")
+        logger.warning("semantic router failed: %s", e)
         return "qwen_basic"
 
-# --- Model Configuration ---
-REPO_ID = "Qwen/Qwen3-0.6B-GGUF"
-FILENAME = "Qwen3-0.6B-Q8_0.gguf"
-LOCAL_DIR = "./models"
-MODEL_PATH = os.path.join(LOCAL_DIR, FILENAME)
-CONVERSATIONS_FILE = "conversations.json"
+# --- Model Configuration (from config) ---
+from config import (
+    CONVERSATIONS_FILE,
+    LOCAL_DIR,
+    CHAT_REPO_ID as REPO_ID,
+    CHAT_FILENAME as FILENAME,
+    CHAT_MODEL_PATH as MODEL_PATH,
+)
 
 def strip_think_for_ui(text: str) -> str:
     """Remove <think>...</think> blocks and any trailing incomplete <think> for UI display. Never send think content to the UI."""
@@ -55,22 +65,24 @@ class Conversation(BaseModel):
 
 # --- Conversation Manager ---
 class ConversationManager:
-    def __init__(self, storage_path: str):
-        self.storage_path = storage_path
-        self.conversations = self.load_conversations()
+    """Persists conversations to a JSON file and provides CRUD."""
 
-    def load_conversations(self):
+    def __init__(self, storage_path: str) -> None:
+        self.storage_path = storage_path
+        self.conversations: Dict[str, Any] = self.load_conversations()
+
+    def load_conversations(self) -> Dict[str, Any]:
         if os.path.exists(self.storage_path):
             with open(self.storage_path, 'r') as f:
                 data = json.load(f)
                 return {c['id']: c for c in data}
         return {}
 
-    def save_conversations(self):
+    def save_conversations(self) -> None:
         with open(self.storage_path, 'w') as f:
             json.dump(list(self.conversations.values()), f, indent=2)
 
-    def create_conversation(self, title: str = "New Chat", messages: Optional[List[dict]] = None):
+    def create_conversation(self, title: str = "New Chat", messages: Optional[List[dict]] = None) -> dict:
         conv_id = str(uuid.uuid4())
         new_conv = {
             "id": conv_id,
@@ -82,16 +94,16 @@ class ConversationManager:
         self.save_conversations()
         return new_conv
 
-    def get_conversation(self, conv_id: str):
+    def get_conversation(self, conv_id: str) -> Optional[dict]:
         return self.conversations.get(conv_id)
 
-    def update_conversation(self, conv_id: str, messages: List[dict]):
+    def update_conversation(self, conv_id: str, messages: List[dict]) -> None:
         if conv_id in self.conversations:
             self.conversations[conv_id]["messages"] = messages
             self.conversations[conv_id]["updated_at"] = time.time()
             self.save_conversations()
 
-    def rename_conversation(self, conv_id: str, new_title: str):
+    def rename_conversation(self, conv_id: str, new_title: str) -> Optional[dict]:
         if conv_id in self.conversations:
             self.conversations[conv_id]["title"] = new_title
             self.conversations[conv_id]["updated_at"] = time.time()
@@ -99,10 +111,10 @@ class ConversationManager:
             return self.conversations[conv_id]
         return None
 
-    def list_conversations(self):
+    def list_conversations(self) -> List[dict]:
         return sorted(list(self.conversations.values()), key=lambda x: x['updated_at'], reverse=True)
 
-    def delete_conversation(self, conv_id: str):
+    def delete_conversation(self, conv_id: str) -> None:
         if conv_id in self.conversations:
             del self.conversations[conv_id]
             self.save_conversations()
@@ -123,15 +135,15 @@ class AIState:
 
     def load_model(self):
         if not os.path.exists(MODEL_PATH):
-            print("Downloading model...")
+            logger.info("Downloading model...")
             os.makedirs(LOCAL_DIR, exist_ok=True)
             hf_hub_download(repo_id=REPO_ID, filename=FILENAME, local_dir=LOCAL_DIR)
-        
-        print("Loading LLM...")
+
+        logger.info("Loading LLM...")
         self.llm = Llama(model_path=MODEL_PATH, n_ctx=4096, n_threads=4, verbose=False)
         self.stt.load_model()
         self.vosk.load_model()
-        print("Chat AI Ready.")
+        logger.info("Chat AI Ready.")
 
     async def generate_response(self, messages, thinking=True):
         # Prepare messages (skip hidden tool-call entries so the model only sees user/result text)
@@ -174,11 +186,11 @@ class AIState:
         Takes text, routes via semantic router, then either runs tool_ai (function_gemma)
         or generates response with Qwen (qwen_basic / qwen_thinking).
         """
-        print(f"Triggering AI response for: {text}")
+        logger.info("Triggering AI response for: %s", text)
         self.voice_messages.append({"role": "user", "content": text})
 
         route = _get_route(text)
-        print(f"[voice] route: {route}")
+        logger.debug("[voice] route: %s", route)
 
         await websocket.send_json({"type": "ai_start"})
         await websocket.send_json({"type": "voice_status", "status": "thinking"})
@@ -232,7 +244,7 @@ class AIState:
                 while not message_queue.empty():
                     msg = await message_queue.get()
                     if msg.get("type") == "abort":
-                        print("AI execution aborted by user")
+                        logger.info("AI execution aborted by user")
                         abort_event.set()
 
                 if abort_event.is_set():
@@ -267,7 +279,7 @@ class AIState:
                 await asyncio.sleep(0.01)
 
             if not abort_event.is_set():
-                print(f"AI response complete: {full_response[:50]}...")
+                logger.debug("AI response complete: %s...", full_response[:50])
                 self.voice_messages.append({"role": "assistant", "content": full_response})
                 if len(self.voice_messages) > 11:
                     self.voice_messages = [self.voice_messages[0]] + self.voice_messages[-10:]
@@ -287,7 +299,7 @@ class AIState:
                 # Otherwise "idle" is sent by on_tts_queue_drained when playback finishes
 
         except Exception as e:
-            print(f"Error in AI response pipeline: {e}")
+            logger.exception("Error in AI response pipeline: %s", e)
             await websocket.send_json({"type": "error", "message": str(e)})
             await websocket.send_json({"type": "voice_status", "status": "idle"})
 
@@ -377,7 +389,7 @@ async def chat_websocket_endpoint(websocket: WebSocket, conv_id: str):
                 ai.conv_manager.update_conversation(conv_id, conv["messages"])
 
                 route = _get_route(user_text)
-                print(f"[chat] route: {route}")
+                logger.debug("[chat] route: %s", route)
 
                 await websocket.send_json({"type": "stream_start"})
 
@@ -431,14 +443,14 @@ async def chat_websocket_endpoint(websocket: WebSocket, conv_id: str):
                 abort_event.set()
 
     except WebSocketDisconnect:
-        print(f"Client disconnected from conversation {conv_id}")
+                logger.info("Client disconnected from conversation %s", conv_id)
     finally:
         receive_task.cancel()
 
 @router.websocket("/ws/voice")
 async def voice_websocket(websocket: WebSocket):
     await websocket.accept()
-    print("Voice client connected")
+    logger.info("Voice client connected")
     
     abort_event = asyncio.Event()
     message_queue = asyncio.Queue()
@@ -457,7 +469,7 @@ async def voice_websocket(websocket: WebSocket):
         while True:
             data = await message_queue.get()
             command = data.get("type")
-            print(f"Voice Command Received: {command}")
+            logger.debug("Voice Command Received: %s", command)
 
             if command == "start_vosk":
                 if not ai.is_vosk_recording:
@@ -473,9 +485,9 @@ async def voice_websocket(websocket: WebSocket):
             elif command == "stop_vosk":
                 if ai.is_vosk_recording:
                     ai.is_vosk_recording = False
-                    print("Stopping Vosk...")
+                    logger.debug("Stopping Vosk...")
                     text = ai.vosk.stop_listening()
-                    print(f"Vosk Final Text: {text}")
+                    logger.debug("Vosk Final Text: %s", text)
                     if text:
                         await websocket.send_json({"type": "vosk_final", "text": text})
                         await websocket.send_json({"type": "voice_status", "status": "thinking"})
@@ -485,17 +497,17 @@ async def voice_websocket(websocket: WebSocket):
 
             elif command == "toggle_voice":
                 if not ai.is_recording:
-                    print("Starting Whisper Capture...")
+                    logger.debug("Starting Whisper Capture...")
                     abort_event.clear()
                     ai.is_recording = True
                     ai.stt.start_capture()
                     await websocket.send_json({"type": "voice_status", "status": "listening"})
                 else:
                     ai.is_recording = False
-                    print("Stopping Whisper and Transcribing...")
+                    logger.debug("Stopping Whisper and Transcribing...")
                     await websocket.send_json({"type": "voice_status", "status": "thinking"})
                     text = ai.stt.stop_and_transcribe()
-                    print(f"Whisper Transcription: {text}")
+                    logger.debug("Whisper Transcription: %s", text)
                     
                     if text:
                         await websocket.send_json({"type": "voice_transcription", "text": text})
@@ -505,7 +517,7 @@ async def voice_websocket(websocket: WebSocket):
                         await websocket.send_json({"type": "voice_status", "status": "idle"})
 
             elif command == "abort":
-                print("Global Abort Requested")
+                logger.info("Global Abort Requested")
                 abort_event.set()
 
             elif command == "task.list":
@@ -514,7 +526,7 @@ async def voice_websocket(websocket: WebSocket):
                     jobs = list_jobs()
                     await websocket.send_json({"type": "task_list", "jobs": jobs})
                 except Exception as e:
-                    print(f"[task.list] {e}")
+                    logger.warning("[task.list] %s", e)
                     await websocket.send_json({"type": "task_list", "jobs": []})
 
             elif command == "task.add":
@@ -530,7 +542,7 @@ async def voice_websocket(websocket: WebSocket):
                         job = add_job(name=name, description=description, schedule=schedule, payload=payload)
                         await websocket.send_json({"type": "task_added", "result": True, "job": job})
                 except Exception as e:
-                    print(f"[task.add] {e}")
+                    logger.warning("[task.add] %s", e)
                     import traceback
                     traceback.print_exc()
                     await websocket.send_json({"type": "task_added", "result": False, "error": str(e)})
@@ -543,13 +555,13 @@ async def voice_websocket(websocket: WebSocket):
                         remove_job(job_id)
                     await websocket.send_json({"type": "task_removed"})
                 except Exception as e:
-                    print(f"[task.remove] {e}")
+                    logger.warning("[task.remove] %s", e)
                     await websocket.send_json({"type": "task_removed"})
 
     except WebSocketDisconnect:
-        print("Voice client disconnected")
+        logger.info("Voice client disconnected")
     except Exception as e:
-        print(f"Voice WebSocket error: {e}")
+        logger.exception("Voice WebSocket error: %s", e)
         import traceback
         traceback.print_exc()
     finally:

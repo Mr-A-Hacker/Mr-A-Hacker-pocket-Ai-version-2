@@ -5,6 +5,7 @@ Uses the same response flow as test_gemma.py (streaming, first_function_call_onl
 """
 import argparse
 import json
+import logging
 import os
 import re
 import subprocess
@@ -16,27 +17,29 @@ import urllib.request
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
+logger = logging.getLogger(__name__)
+
 # User-Agent for HTTP requests (some APIs expect a browser-like agent)
 _URL_OPENER = urllib.request.build_opener()
 _URL_OPENER.addheaders = [("User-Agent", "PocketAI/1.0 (Raspberry Pi)")]
 
-# 1. Model configuration
-REPO_ID = "nlouis/functiongemma-pocket-q4_k_m"
-FILENAME = "functiongemma-pocket-q4_k_m.gguf"
-LOCAL_DIR = "./models"
-MODEL_PATH = os.path.join(LOCAL_DIR, FILENAME)
-TOOLS_PATH = "tools.json"
+# 1. Model configuration (from config)
+from config import LOCAL_DIR, TOOLS_PATH, TOOL_REPO_ID, TOOL_FILENAME, TOOL_MODEL_PATH
+
+REPO_ID = TOOL_REPO_ID
+FILENAME = TOOL_FILENAME
+MODEL_PATH = TOOL_MODEL_PATH
 
 # 2. Auto-download if not already in models/
 if not os.path.exists(MODEL_PATH):
-    print(f"Model not found at {MODEL_PATH}. Downloading from Hugging Face...")
+    logger.info("Model not found at %s. Downloading from Hugging Face...", MODEL_PATH)
     os.makedirs(LOCAL_DIR, exist_ok=True)
     MODEL_PATH = hf_hub_download(
-        repo_id=REPO_ID,
-        filename=FILENAME,
+        repo_id=TOOL_REPO_ID,
+        filename=TOOL_FILENAME,
         local_dir=LOCAL_DIR,
     )
-    print("Download complete!")
+    logger.info("Download complete!")
 
 # 3. Performance settings (aligned with test_gemma.py)
 PERF = {
@@ -166,7 +169,7 @@ def parse_function_call(raw_call: str):
             return name, args or {}
         except (json.JSONDecodeError, TypeError):
             continue
-    print(f"[tool_ai] Could not parse tool call. Raw payload: {payload[:500]!r}")
+    logger.warning("[tool_ai] Could not parse tool call. Raw payload: %r", payload[:500])
     return None, None
 
 
@@ -197,7 +200,7 @@ def _http_get(url: str, timeout: float = 10.0) -> str:
 
 def run_get_weather(arguments: dict) -> str:
     location = (arguments.get("location") or "unknown").strip() or "unknown"
-    print(f"[tool] get_weather(location={location})")
+    logger.info("[tool] get_weather(location=%s)", location)
     try:
         # Geocode via Open-Meteo (no API key)
         geo_url = "https://geocoding-api.open-meteo.com/v1/search?" + urllib.parse.urlencode(
@@ -248,13 +251,13 @@ def run_get_weather(arguments: dict) -> str:
 
 
 def run_activate_security_mode(arguments: dict) -> str:
-    print("[tool] activate_security_mode()")
+    logger.info("[tool] activate_security_mode()")
     return "Security mode activated"
 
 
 def run_web_search(arguments: dict) -> str:
     query = (arguments.get("query") or "").strip()
-    print(f"[tool] web_search(query={query})")
+    logger.info("[tool] web_search(query=%s)", query)
     if not query:
         return "Web search: no query provided."
     # Prefer ddgs package for real web results (title + snippet + URL)
@@ -280,7 +283,7 @@ def run_web_search(arguments: dict) -> str:
     except ImportError:
         pass  # Fall back to Instant Answer API
     except Exception as e:
-        print(f"[tool] web_search DDGS error: {e}")
+        logger.warning("[tool] web_search DDGS error: %s", e)
     # Fallback: DuckDuckGo Instant Answer API (limited; often empty for generic queries)
     try:
         url = "https://api.duckduckgo.com/?" + urllib.parse.urlencode({"q": query, "format": "json"})
@@ -303,7 +306,7 @@ def run_web_search(arguments: dict) -> str:
 
 
 def run_network_scan(arguments: dict) -> str:
-    print("[tool] network_scan()")
+    logger.info("[tool] network_scan()")
     try:
         out = subprocess.run(
             ["ip", "neigh", "show"],
@@ -340,7 +343,7 @@ def run_network_scan(arguments: dict) -> str:
 
 def run_get_stock_price(arguments: dict) -> str:
     symbol = (arguments.get("symbol") or "").strip().upper()
-    print(f"[tool] get_stock_price(symbol={symbol})")
+    logger.info("[tool] get_stock_price(symbol=%s)", symbol)
     if not symbol:
         return "Stock: no symbol provided."
     try:
@@ -377,7 +380,7 @@ TOOL_RUNNERS = {
 def run_tool(name: str, arguments: dict) -> str:
     runner = TOOL_RUNNERS.get(name)
     if not runner:
-        print(f"[tool] unknown tool: {name}({arguments})")
+        logger.warning("[tool] unknown tool: %s(%s)", name, arguments)
         return f"Unknown tool: {name}"
     return runner(arguments)
 
@@ -399,10 +402,10 @@ def _get_llm_and_tools():
     _chat_tools_cache = [{"type": "function", "function": t} for t in tools]
     model_path = MODEL_PATH
     if not os.path.exists(model_path):
-        print(f"Model not found at {model_path}. Downloading...")
+        logger.info("Model not found at %s. Downloading...", model_path)
         os.makedirs(LOCAL_DIR, exist_ok=True)
         model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME, local_dir=LOCAL_DIR)
-    print(f"[tool_ai] Loading FunctionGemma: {model_path}")
+    logger.info("[tool_ai] Loading FunctionGemma: %s", model_path)
     _llm_cache = Llama(
         model_path=model_path,
         n_ctx=PERF["n_ctx"],
@@ -415,6 +418,15 @@ def _get_llm_and_tools():
         verbose=PERF["verbose"],
     )
     return _llm_cache, _chat_tools_cache
+
+
+def preload_tool_model() -> None:
+    """Load Function Gemma and tools at startup so first tool call is fast. Safe to call multiple times."""
+    try:
+        _get_llm_and_tools()
+        logger.info("[tool_ai] Function Gemma preloaded.")
+    except Exception as e:
+        logger.warning("[tool_ai] Preload skipped or failed: %s", e)
 
 
 def run_task_for_backend(prompt: str) -> tuple:
@@ -457,15 +469,15 @@ def run_task(llm, chat_tools, user_prompt: str):
     raw = "".join(content_parts)
     tool_call_raw = first_function_call_only(raw)
     if "<start_function_call>" not in tool_call_raw:
-        print("Model did not produce a tool call.")
+        logger.debug("Model did not produce a tool call.")
         return None, None
 
     name, arguments = parse_function_call(tool_call_raw)
     if not name:
-        print("Could not parse tool call from model output.")
+        logger.warning("Could not parse tool call from model output.")
         return tool_call_raw, None
 
-    print(f"Tool call: {name}({arguments})")
+    logger.info("Tool call: %s(%s)", name, arguments)
     result = run_tool(name, arguments)
     return tool_call_raw, result
 
@@ -485,7 +497,7 @@ def create_chat_via_api(title: str, messages: list, api_base: str = "http://127.
             data = json.loads(resp.read().decode())
             return data
     except Exception as e:
-        print(f"Failed to create conversation via API: {e}")
+        logger.warning("Failed to create conversation via API: %s", e)
         return None
 
 
@@ -500,19 +512,19 @@ def main():
     if not prompt:
         prompt = input("Prompt (task message): ").strip()
     if not prompt:
-        print("No prompt provided.")
+        logger.warning("No prompt provided.")
         return 1
 
     # Load tools (same as test_gemma.py)
     if not os.path.exists(TOOLS_PATH):
-        print(f"Error: Tools file not found at {TOOLS_PATH}")
+        logger.error("Error: Tools file not found at %s", TOOLS_PATH)
         return 1
     with open(TOOLS_PATH, "r") as f:
         tools = json.load(f)
     chat_tools = [{"type": "function", "function": t} for t in tools]
 
     # Load model
-    print(f"Loading FunctionGemma model: {MODEL_PATH}...")
+    logger.info("Loading FunctionGemma model: %s...", MODEL_PATH)
     llm = Llama(
         model_path=MODEL_PATH,
         n_ctx=PERF["n_ctx"],
@@ -541,15 +553,15 @@ def main():
         title = (prompt[:30] + "…") if len(prompt) > 30 else prompt
         conv = create_chat_via_api(title, chat_messages, api_base=args.api_base)
         if conv:
-            print(f"Created conversation: {conv.get('id')} — {conv.get('title', '')}")
+            logger.info("Created conversation: %s — %s", conv.get('id'), conv.get('title', ''))
         else:
-            print("Chat messages (API create skipped or failed):")
+            logger.info("Chat messages (API create skipped or failed):")
             for m in chat_messages:
-                print(f"  {m['role']}: {m['content'][:80]}…" if len(m["content"]) > 80 else f"  {m['role']}: {m['content']}")
+                logger.info("  %s: %s", m['role'], m['content'][:80] + "…" if len(m["content"]) > 80 else m['content'])
     else:
-        print("Chat messages:")
+        logger.info("Chat messages:")
         for m in chat_messages:
-            print(f"  {m['role']}: {m['content'][:80]}…" if len(m["content"]) > 80 else f"  {m['role']}: {m['content']}")
+            logger.info("  %s: %s", m['role'], m['content'][:80] + "…" if len(m["content"]) > 80 else m['content'])
 
     return 0
 

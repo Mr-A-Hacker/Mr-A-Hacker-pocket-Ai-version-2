@@ -367,8 +367,96 @@
         "role": "assistant",
         "content": "Network scan:\n10.0.0.1  70:13:01:8c:10:0f\nfe80::7213:1ff:fe8c:100f  70:13:01:8c:10:0f",
         "timestamp": 1772076632.5776007
+      },
+      {
+        "role": "user",
+        "content": "hello",
+        "timestamp": 1772078891.959806
+      },
+      {
+        "role": "assistant",
+        "content": "<think>\n\n</think>\n\nHello! What can I do for you?",
+        "timestamp": 1772078920.5225542
+      },
+      {
+        "role": "user",
+        "content": "check network",
+        "timestamp": 1772078970.4874349
+      },
+      {
+        "role": "assistant",
+        "content": "<start_function_call>call:network_scan{}<end_function_call>",
+        "timestamp": 1772078974.2142026,
+        "hidden": true
+      },
+      {
+        "role": "assistant",
+        "content": "Network scan:\n10.0.0.180  34:5a:60:df:94:d5\n10.0.0.1  70:13:01:8c:10:0f\n2601:c2:2180:5510:81:5271:54b4:392c  34:5a:60:df:94:d5\nfe80::7213:1ff:fe8c:100f  70:13:01:8c:10:0f\n2601:c2:2180:5510::5c2b  34:5a:60:df:94:d5\n2601:c2:2180:5510:f888:12e:2043:2593  34:5a:60:df:94:d5",
+        "timestamp": 1772078974.2142062
+      },
+      {
+        "role": "user",
+        "content": "thank you",
+        "timestamp": 1772078981.565325
+      },
+      {
+        "role": "assistant",
+        "content": "<think>\n\n</think>\n\nYou're welcome! Let me know if there's anything else I can assist you with. \ud83d\ude0a",
+        "timestamp": 1772078995.3927968
+      },
+      {
+        "role": "user",
+        "content": "what is the stock price of GOOG",
+        "timestamp": 1772079025.7060683
+      },
+      {
+        "role": "assistant",
+        "content": "<start_function_call>call:get_stock_price{symbol:<escape>GOOG<escape>}<end_function_call>",
+        "timestamp": 1772079027.5480325,
+        "hidden": true
+      },
+      {
+        "role": "assistant",
+        "content": "Stock GOOG: USD 313.03 (regular market).",
+        "timestamp": 1772079027.5480359
+      },
+      {
+        "role": "user",
+        "content": "thank you",
+        "timestamp": 1772079031.440614
+      },
+      {
+        "role": "assistant",
+        "content": "<think>\n\n</think>\n\nYou're welcome! Let me know if there's anything else I can assist you with. \ud83d\ude0a",
+        "timestamp": 1772079041.2369788
+      },
+      {
+        "role": "user",
+        "content": "what is the weather of NY",
+        "timestamp": 1772079045.7064118
+      },
+      {
+        "role": "assistant",
+        "content": "<start_function_call>call:get_weather{location:<escape>NY<escape>}<end_function_call>",
+        "timestamp": 1772079048.0096443,
+        "hidden": true
+      },
+      {
+        "role": "assistant",
+        "content": "Weather for Ny: Cloudy, 9.1\u00b0C, humidity 94%, wind 11.2 km/h.",
+        "timestamp": 1772079048.0096452
+      },
+      {
+        "role": "user",
+        "content": "thank you",
+        "timestamp": 1772079091.3339584
+      },
+      {
+        "role": "assistant",
+        "content": "<think>\n\n</think>\n\nYou're welcome! Let me know if there's anything else I can assist you with. \ud83d\ude0a",
+        "timestamp": 1772079099.0044498
       }
     ],
-    "updated_at": 1772076632.577607
+    "updated_at": 1772079099.0044549
   }
 ]

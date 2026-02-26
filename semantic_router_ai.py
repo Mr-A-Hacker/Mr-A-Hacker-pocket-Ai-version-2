@@ -5,8 +5,13 @@ Semantic router for backend: route a user prompt to one of three models.
 - function_gemma: Function Gemma for tool/function calls
 
 Import and call get_route(prompt) from chat_ai for voice and chat flows.
+
+The router uses FastEmbedEncoder, which downloads a small embedding model (~67MB) from
+Hugging Face the first time. We cache it under the project models dir so it only downloads once.
 """
+import os
 import sys
+from pathlib import Path
 
 _router = None
 
@@ -24,6 +29,15 @@ def _get_router():
         raise ImportError(
             "semantic_router not available. Install: pip install 'semantic-router[fastembed]'"
         ) from e
+
+    # Cache embedding model under project models/ so it only downloads once (not HF default cache)
+    try:
+        from config import LOCAL_DIR
+        embed_cache = os.path.join(LOCAL_DIR, "fastembed_cache")
+    except ImportError:
+        embed_cache = str(Path(__file__).resolve().parent / "models" / "fastembed_cache")
+    os.makedirs(embed_cache, exist_ok=True)
+    encoder = FastEmbedEncoder(cache_dir=embed_cache)
 
     qwen_basic = Route(
         name="qwen_basic",
@@ -53,10 +67,9 @@ def _get_router():
             "search the web for latest news", "search for AI news",
             "scan my local network", "scan the network",
             "what is the stock price of TSLA?", "current price of AAPL",
-            "get weather for Boston", "enable PIR sensors", "web search for something",
+            "get weather for Boston", "enable PIR sensors",             "web search for something",
         ],
     )
-    encoder = FastEmbedEncoder()
     _router = SemanticRouter(encoder=encoder, routes=[qwen_basic, qwen_thinking, function_gemma], auto_sync="local")
     return _router
 

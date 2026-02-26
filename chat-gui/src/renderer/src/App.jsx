@@ -10,6 +10,7 @@ import StatusBar from './components/StatusBar';
 import TaskManager from './components/TaskManager';
 import HeartbeatManager from './components/HeartbeatManager';
 import GPIOControl from './components/GPIOControl';
+import ErrorBoundary from './components/ErrorBoundary';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 
 
@@ -42,7 +43,9 @@ export default function App() {
         <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--pixel-bg)] text-[var(--pixel-text)]">
           <StatusBar />
           <div className="flex-1 overflow-hidden relative w-full">
-            <AnimatedRoutes />
+            <ErrorBoundary>
+              <AnimatedRoutes />
+            </ErrorBoundary>
           </div>
         </div>
       </WebSocketProvider>

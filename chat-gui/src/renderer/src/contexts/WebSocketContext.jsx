@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { API_URL, WS_URL, CHAT_WS_URL } from '../config.js';
+import { apiFetch } from '../apiClient.js';
 
 const WebSocketContext = createContext(null);
-
-const WS_URL = `ws://${window.location.hostname || '127.0.0.1'}:8000/ws/voice`;
-const CHAT_WS_URL = `ws://${window.location.hostname || '127.0.0.1'}:8000/ws/chat`;
-const API_URL = `http://${window.location.hostname || '127.0.0.1'}:8000`;
 
 export function WebSocketProvider({ children }) {
     const [connStatus, setConnStatus] = useState('connecting'); // connected | disconnected | connecting
@@ -23,6 +21,7 @@ export function WebSocketProvider({ children }) {
     // Multi-conversation state
     const [conversations, setConversations] = useState([]);
     const [currentConvId, setCurrentConvId] = useState(null);
+    const [lastApiError, setLastApiError] = useState(null);
 
     // Generic event listeners for other components
     const eventListeners = useRef({});
@@ -178,49 +177,59 @@ export function WebSocketProvider({ children }) {
 
     const fetchConversations = useCallback(async () => {
         try {
-            const resp = await fetch(`${API_URL}/conversations`);
-            const data = await resp.json();
+            setLastApiError(null);
+            const data = await apiFetch('/conversations');
             setConversations(data);
             return data;
         } catch (e) {
-            console.error("Failed to fetch conversations", e);
+            const msg = e?.message || 'Failed to fetch conversations';
+            setLastApiError(msg);
+            console.error(msg, e);
         }
     }, []);
 
     const createConversation = useCallback(async () => {
         try {
-            const resp = await fetch(`${API_URL}/conversations`, { method: 'POST' });
-            const data = await resp.json();
+            setLastApiError(null);
+            const data = await apiFetch('/conversations', { method: 'POST' });
             await fetchConversations();
             return data;
         } catch (e) {
-            console.error("Failed to create conversation", e);
+            const msg = e?.message || 'Failed to create conversation';
+            setLastApiError(msg);
+            console.error(msg, e);
         }
     }, [fetchConversations]);
 
     const deleteConversation = useCallback(async (id) => {
         try {
-            await fetch(`${API_URL}/conversations/${id}`, { method: 'DELETE' });
+            setLastApiError(null);
+            await apiFetch(`/conversations/${id}`, { method: 'DELETE' });
             await fetchConversations();
             if (currentConvId === id) {
                 setCurrentConvId(null);
                 setMessages([]);
             }
         } catch (e) {
-            console.error("Failed to delete conversation", e);
+            const msg = e?.message || 'Failed to delete conversation';
+            setLastApiError(msg);
+            console.error(msg, e);
         }
     }, [currentConvId, fetchConversations]);
 
     const renameConversation = useCallback(async (id, newTitle) => {
         try {
-            await fetch(`${API_URL}/conversations/${id}`, {
+            setLastApiError(null);
+            await apiFetch(`/conversations/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: newTitle })
             });
             await fetchConversations();
         } catch (e) {
-            console.error("Failed to rename conversation", e);
+            const msg = e?.message || 'Failed to rename conversation';
+            setLastApiError(msg);
+            console.error(msg, e);
         }
     }, [fetchConversations]);
 
@@ -360,7 +369,9 @@ export function WebSocketProvider({ children }) {
         voiceStreamText,
         isVoiceStreaming,
         thinking,
-        toggleThinking
+        toggleThinking,
+        lastApiError,
+        clearApiError: () => setLastApiError(null),
     };
 
     return (

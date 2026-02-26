@@ -9,7 +9,9 @@ export default function ChatSidebar({ isOpen, onClose }) {
         setCurrentConvId,
         createConversation,
         deleteConversation,
-        renameConversation
+        renameConversation,
+        lastApiError,
+        clearApiError,
     } = useWebSocket();
 
     const [editingId, setEditingId] = useState(null);
@@ -59,6 +61,12 @@ export default function ChatSidebar({ isOpen, onClose }) {
                 className={`fixed top-20 right-0 bottom-0 z-50 bg-[var(--pixel-surface)] border-l-4 border-[var(--pixel-border)] transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} w-72 flex flex-col`}
             >
                 <div className="p-4 border-b-4 border-[var(--pixel-border)] flex flex-col gap-2">
+                    {lastApiError && (
+                        <div className="flex items-center justify-between gap-2 p-2 bg-red-500/20 border-2 border-red-500 text-red-200 text-[10px] font-['Press_Start_2P']">
+                            <span className="flex-1 truncate" title={lastApiError}>{lastApiError}</span>
+                            <button type="button" onClick={clearApiError} className="shrink-0 p-1 hover:bg-red-500/30" aria-label="Dismiss"><X size={12} /></button>
+                        </div>
+                    )}
                     <button
                         onClick={handleNewChat}
                         className="pixel-btn w-full py-3 bg-[var(--pixel-primary)] text-white text-[10px] font-['Press_Start_2P'] flex items-center justify-center gap-2"

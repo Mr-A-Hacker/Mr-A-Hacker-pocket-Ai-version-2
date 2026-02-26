@@ -1,4 +1,5 @@
 # Web & API
+python-dotenv==1.0.1
 fastapi==0.129.2
 apscheduler>=3.10.0
 uvicorn==0.41.0
@@ -38,6 +39,9 @@ ddgs>=9.0.0
 # semantic-router[local]
 
 # Hailo object detection (object_detection.py + hailo_od)
-lap
-cython_bbox
-PyYAML
+lap>=0.4.0
+cython_bbox  # may need building on Pi; install from project .venv
+PyYAML>=6.0
+
+# Testing (optional): pip install pytest then run pytest tests/
+pytest>=8.0

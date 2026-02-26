@@ -1,12 +1,17 @@
+import logging
 import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-# Import routers and state from our modules
+from config import PORT, CAPTURES_DIR, setup_logging
 from camera_stream import router as camera_router
 from chat_ai import router as chat_router, ai as ai_state
+from tool_ai import preload_tool_model
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Pocket AI Unified Backend")
 
@@ -20,25 +25,31 @@ app.add_middleware(
 )
 
 # Static files for gallery
-os.makedirs("captures", exist_ok=True)
-app.mount("/captures", StaticFiles(directory="captures"), name="captures")
+os.makedirs(CAPTURES_DIR, exist_ok=True)
+app.mount("/captures", StaticFiles(directory=CAPTURES_DIR), name="captures")
 
 # Include the routers
 app.include_router(camera_router)
 app.include_router(chat_router)
 
+@app.get("/health")
+async def health():
+    """Simple health check for monitoring and tests."""
+    return {"status": "ok"}
+
+
 @app.on_event("startup")
 async def startup_event():
-    # Initialize the AI models on startup
-    print("Unified Backend starting up...")
-    ai_state.load_model()
-    # Start task scheduler (interval + date/time tasks)
+    logger.info("Unified Backend starting up...")
+    if not os.environ.get("SKIP_MODEL_LOAD"):
+        ai_state.load_model()
+        preload_tool_model()
     try:
         from task_scheduler import init_scheduler
         init_scheduler(ai_state.conv_manager)
     except Exception as e:
-        print(f"Task scheduler not started: {e}")
-    print("Unified Backend ready.")
+        logger.warning("Task scheduler not started: %s", e)
+    logger.info("Unified Backend ready.")
 
 @app.post("/shutdown")
 async def shutdown():
@@ -51,5 +62,4 @@ async def shutdown():
     return {"status": "shutting down..."}
 
 if __name__ == "__main__":
-    # Run everything on port 8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
