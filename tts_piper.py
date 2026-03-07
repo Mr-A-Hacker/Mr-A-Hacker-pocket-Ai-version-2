@@ -4,10 +4,14 @@ import subprocess
 import shlex
 import threading
 import queue
+import time
 import urllib.request
 from piper.voice import PiperVoice
 
 os.environ['ORT_LOGGING_LEVEL'] = '3'
+
+# ALSA device for playback (e.g. plughw:3,0 for USB). Use "default" for system default.
+TTS_ALSA_DEVICE = os.environ.get("TTS_ALSA_DEVICE", "default")
 
 # Sentence-ending punctuation (split on these, keep delimiter with sentence)
 SENTENCE_END_RE = re.compile(r'(?<=[.!?\n])\s*')
@@ -22,7 +26,7 @@ def split_sentences(text):
 
 
 class PocketAudio:
-    def __init__(self, model_name="en_US-lessac-medium"):
+    def __init__(self, model_name="en_US-lessac-low"):
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.model_dir = os.path.join(self.base_dir, "models")
         self.model_path = os.path.join(self.model_dir, f"{model_name}.onnx")
@@ -31,7 +35,7 @@ class PocketAudio:
         self._ensure_models_exist(model_name)
         print("Loading Piper into memory... (Standby)")
         self.voice = PiperVoice.load(self.model_path, config_path=self.config_path)
-        print("System Ready. Outputting to USB Audio Device (hw:3,0).")
+        print(f"System Ready. Outputting to ALSA device: {TTS_ALSA_DEVICE}")
 
         # Sentence-by-sentence playback queue
         self._queue = queue.Queue()
@@ -41,7 +45,9 @@ class PocketAudio:
 
     def _ensure_models_exist(self, name):
         if not os.path.exists(self.model_dir): os.makedirs(self.model_dir)
-        url_base = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/"
+        # Size is last segment of name (e.g. en_US-lessac-medium -> medium; low/medium/high)
+        size = name.split("-")[-1]
+        url_base = f"https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/{size}/"
         for ext in [".onnx", ".onnx.json"]:
             path = self.model_path if ext == ".onnx" else self.config_path
             if not os.path.exists(path):
@@ -95,19 +101,40 @@ class PocketAudio:
         self.enqueue_text(text)
 
     def _speak_internal(self, text):
-        # Target Card 3, Device 0 using plughw for compatibility
-        command = "aplay -D plughw:3,0 -r 22050 -f S16_LE -t raw -"
+        command = f"aplay -D {TTS_ALSA_DEVICE} -r 22050 -f S16_LE -t raw -"
         args = shlex.split(command)
         print(f"Synthesizing: {text[:50]}...")
         try:
             with subprocess.Popen(args, stdin=subprocess.PIPE) as play_process:
+                t0 = time.perf_counter()
                 for chunk in self.voice.synthesize(text):
                     play_process.stdin.write(chunk.audio_int16_bytes)
+                tts_ms = (time.perf_counter() - t0) * 1000
+                print(f"  text-to-speech: {tts_ms:.0f} ms")
+                play_process.stdin.close()
+                play_process.wait()
+            if play_process.returncode != 0:
+                print(f"aplay exited with code {play_process.returncode}")
         except Exception as e:
             print(f"Audio Error: {e}")
 
 if __name__ == "__main__":
-    ai = PocketAudio()
-    
-    msg = "I have saved this audio to a file as you requested."
-    ai.speak(msg)
+    # Test all three sizes: small (low), medium, large (high)
+    models = [
+        ("small", "en_US-lessac-low"),
+        ("medium", "en_US-lessac-medium"),
+        ("large", "en_US-lessac-high"),
+    ]
+    msg = "Hello, my name is Pocket. Nice to meet you."
+
+    for label, model_name in models:
+        print(f"\n{'='*60}\n  Model: {label} ({model_name})\n{'='*60}")
+        done = threading.Event()
+        ai = PocketAudio(model_name=model_name)
+        ai.set_queue_drained_callback(lambda: done.set())
+        ai.speak(msg)
+        print("Waiting for playback to finish...")
+        if not done.wait(timeout=30):
+            print("Timeout waiting for playback.")
+        else:
+            print("Done.")

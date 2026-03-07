@@ -10,8 +10,12 @@ The router uses FastEmbedEncoder, which downloads a small embedding model (~67MB
 Hugging Face the first time. We cache it under the project models dir so it only downloads once.
 """
 import os
+import re
 import sys
+import time
 from pathlib import Path
+
+_llm = None
 
 _router = None
 
@@ -92,11 +96,75 @@ def get_route(prompt: str) -> str:
         return "qwen_basic"
 
 
+def _strip_think(text: str) -> str:
+    """Remove <think>...</think> blocks for display."""
+    if not text or not text.strip():
+        return text
+    out = re.sub(r'<\s*think\s*>.*?<\s*/\s*think\s*>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    out = re.sub(r'<\s*think\s*>[\s\S]*$', '', out, flags=re.IGNORECASE)
+    out = out.replace('</think>', '').replace('<think>', '')
+    return out.strip()
+
+
+def _get_llm():
+    """Load and cache the Qwen LLM (same config as chat_ai)."""
+    global _llm
+    if _llm is not None:
+        return _llm
+    try:
+        from config import LOCAL_DIR, CHAT_REPO_ID as REPO_ID, CHAT_FILENAME as FILENAME, CHAT_MODEL_PATH as MODEL_PATH
+        from huggingface_hub import hf_hub_download
+        from llama_cpp import Llama
+    except ImportError as e:
+        raise ImportError("Need config, huggingface_hub, llama_cpp for REPL Qwen. Install: pip install llama-cpp-python huggingface-hub") from e
+    if not os.path.exists(MODEL_PATH):
+        print("Downloading Qwen model...")
+        os.makedirs(LOCAL_DIR, exist_ok=True)
+        hf_hub_download(repo_id=REPO_ID, filename=FILENAME, local_dir=LOCAL_DIR)
+    print("Loading Qwen LLM...")
+    _llm = Llama(model_path=MODEL_PATH, n_ctx=4096, n_threads=4, verbose=False)
+    return _llm
+
+
+def _generate_sync(prompt: str, thinking: bool) -> str:
+    """Run Qwen on one user message; returns full raw response."""
+    llm = _get_llm()
+    user_content = prompt + (" /think" if thinking else " /no_think")
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": user_content},
+    ]
+    temp = 0.6 if thinking else 0.7
+    top_p = 0.95 if thinking else 0.8
+    stream = llm.create_chat_completion(
+        messages=messages,
+        max_tokens=2048,
+        temperature=temp,
+        top_p=top_p,
+        top_k=20,
+        min_p=0.0,
+        presence_penalty=1.5,
+        stream=True,
+    )
+    full = ""
+    for chunk in stream:
+        if chunk.get("choices") and len(chunk["choices"]) > 0:
+            delta = chunk["choices"][0].get("delta", {})
+            if "content" in delta:
+                content = delta["content"]
+                full += content
+                print(content, end="", flush=True)
+    print()  # newline after stream
+    return full
+
+
 # --- REPL for manual testing ---
 def main():
     print("Loading router...")
     get_route("warmup")  # force init
-    print("Semantic router ready. Type a prompt (empty to quit).\n")
+    print("Loading Qwen 3...")
+    _get_llm()
+    print("Semantic router ready. Type a prompt (empty to quit). Qwen thinking/non-thinking only; function_gemma skipped.\n")
     while True:
         try:
             prompt = input("Prompt> ").strip()
@@ -104,8 +172,18 @@ def main():
             break
         if not prompt:
             break
+        t0 = time.perf_counter()
         r = get_route(prompt)
-        print(f"  -> {r}\n")
+        route_ms = (time.perf_counter() - t0) * 1000
+        print(f"  -> {r}  (routing: {route_ms:.1f} ms)")
+        if r == "function_gemma":
+            print("  (function_gemma skipped)\n")
+            continue
+        # Send to Qwen (thinking or non-thinking)
+        gen_t0 = time.perf_counter()
+        _generate_sync(prompt, thinking=(r == "qwen_thinking"))
+        gen_ms = (time.perf_counter() - gen_t0) * 1000
+        print(f"  (generation: {gen_ms:.0f} ms)\n")
     print("Bye.")
 
 

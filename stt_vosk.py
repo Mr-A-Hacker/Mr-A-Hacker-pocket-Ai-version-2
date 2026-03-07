@@ -157,7 +157,11 @@ class STTEngine:
                     if text:
                         accumulated_text.append(text)
                         if self.callback:
-                            self.callback(' '.join(accumulated_text))
+                            full = ' '.join(accumulated_text)
+                            try:
+                                self.callback(full, is_partial=False)
+                            except TypeError:
+                                self.callback(full)
                 
                 else:
                     partial_result = json.loads(self.recognizer.PartialResult())
@@ -165,7 +169,10 @@ class STTEngine:
                     if partial_text:
                         current_live = ' '.join(accumulated_text + [partial_text])
                         if self.callback:
-                            self.callback(current_live)
+                            try:
+                                self.callback(current_live, is_partial=True)
+                            except TypeError:
+                                self.callback(current_live)
 
             except queue.Empty:
                 pass
@@ -178,23 +185,29 @@ class STTEngine:
 
         self.final_text = ' '.join(accumulated_text).strip()
         if self.callback:
-            self.callback(self.final_text)
+            try:
+                self.callback(self.final_text, is_partial=False)
+            except TypeError:
+                self.callback(self.final_text)
 
     def terminate(self):
         self.p.terminate()
 
 if __name__ == "__main__":
+    def _print_transcript(text, is_partial=False):
+        """Print transcription in real time; partial overwrites the line, final prints newline."""
+        end = "\r" if is_partial else "\n"
+        print(text, end=end, flush=True)
+
     engine = STTEngine()
     try:
         engine.load_model()
         while True:
             input("\nPress Enter to Start Recording...")
-            engine.start_listening()
-            
-            input() 
-            
+            engine.start_listening(callback=_print_transcript)
+            print("Listening... (Press Enter to stop)")
+            input()
             final_text = engine.stop_listening()
-            print(f"\n--- Captured: {final_text} ---")
-            
+            print(f"--- Captured: {final_text} ---")
     except KeyboardInterrupt:
         engine.terminate()
