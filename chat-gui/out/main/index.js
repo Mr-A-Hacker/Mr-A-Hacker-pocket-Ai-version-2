@@ -1,5 +1,6 @@
 import { app, ipcMain, BrowserWindow, shell } from "electron";
 import { join } from "path";
+import { exec } from "child_process";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -33,6 +34,18 @@ function createWindow() {
 }
 app.whenReady().then(() => {
   ipcMain.on("app-quit", () => app.quit());
+  ipcMain.handle("run-organic-maps", async () => {
+    return new Promise((resolve, reject) => {
+      exec("flatpak run app.organicmaps.desktop", (error, stdout, stderr) => {
+        if (error) {
+          console.error("Failed to start Organic Maps:", error);
+          reject(error);
+        } else {
+          resolve(stdout);
+        }
+      });
+    });
+  });
   createWindow();
   app.on("activate", function() {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

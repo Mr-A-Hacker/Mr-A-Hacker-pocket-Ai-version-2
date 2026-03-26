@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 const electronAPI = {
-  quit: () => ipcRenderer.send("app-quit")
+  quit: () => ipcRenderer.send("app-quit"),
+  openMaps: () => ipcRenderer.invoke("run-organic-maps")
+  // Added this line
 };
 if (process.contextIsolated) {
   try {

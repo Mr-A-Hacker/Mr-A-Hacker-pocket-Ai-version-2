@@ -1,0 +1,34 @@
+
+> chat-gui@0.0.0 dev
+> electron-vite dev
+
+vite v7.3.1 building ssr environment for development...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/main/index.js  1.22 kB
+✓ built in 85ms
+
+electron main process built successfully
+
+-----
+
+vite v7.3.1 building ssr environment for development...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.mjs  0.32 kB
+✓ built in 15ms
+
+electron preload scripts built successfully
+
+-----
+
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+starting electron app...
+
+[715759:0326/113621.781342:ERROR:dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.systemd1.Manager.StartTransientUnit: object_path= /org/freedesktop/systemd1: org.freedesktop.systemd1.UnitExists: Unit app-org.chromium.Chromium-715759.scope was already loaded or has a fragment file.

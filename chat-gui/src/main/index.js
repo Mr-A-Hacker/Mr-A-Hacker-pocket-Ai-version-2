@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { exec } from 'child_process' // Added for running Organic Maps
 
 // On Linux (e.g. Raspberry Pi), Chromium may log "GLib-GObject: instance has no handler with id"
 // when the UI updates (e.g. after deleting a task). These come from content/browser and are harmless.
@@ -48,6 +49,20 @@ app.whenReady().then(() => {
     // electronApp.setAppUserModelId('com.electron')
 
     ipcMain.on('app-quit', () => app.quit())
+
+    // Handle launching Organic Maps via Flatpak
+    ipcMain.handle('run-organic-maps', async () => {
+        return new Promise((resolve, reject) => {
+            exec('flatpak run app.organicmaps.desktop', (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Failed to start Organic Maps:', error);
+                    reject(error);
+                } else {
+                    resolve(stdout);
+                }
+            });
+        });
+    });
 
     createWindow()
 
