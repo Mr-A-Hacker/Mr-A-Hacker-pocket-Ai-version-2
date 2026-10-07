@@ -1,3 +1,10 @@
+> ## 👋 Start Here
+> A personal AI project. **For users:** explore a more advanced iteration of the Pocket AI concept and learn how an AI application can combine multiple components.
+>
+> **Safety & privacy:** Use security, network, camera, and data-collection features only with appropriate authorization and consent.
+
+---
+
 # 🧠 Viora AI
 
 > **A fully offline, voice-powered personal AI assistant for Raspberry Pi and Linux.**
