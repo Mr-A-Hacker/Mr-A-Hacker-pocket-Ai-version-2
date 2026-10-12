@@ -4,6 +4,8 @@
 
 </div>
 
+[🗺️ Project Roadmap](docs/ROADMAP.md)
+
 > ## 👋 Start Here
 > A personal AI project. **For users:** explore this iteration of the Pocket AI concept and how an AI application is assembled.
 
