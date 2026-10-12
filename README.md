@@ -1,3 +1,9 @@
+<div align="center">
+
+![Pocket AI banner](docs/readme-banner.svg)
+
+</div>
+
 > ## 👋 Start Here
 > A personal AI project. **For users:** explore this iteration of the Pocket AI concept and how an AI application is assembled.
 
